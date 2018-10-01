@@ -1,0 +1,16 @@
+<!DOCTYPE module SYSTEM "module.dtd">
+
+<module name="ibvs_sim">
+  <doc>
+    <description>Simulate Image Based Visual Servoing</description>
+  </doc>
+  <header>
+    <file name="ibvs_sim.h"/>
+  </header>
+  <init fun="ibvs_sim_init()"/>
+  <periodic fun="ibvs_sim_periodic()" freq="60"/>
+  <makefile>
+    <file name="ibvs_sim.c"/>
+  </makefile>
+</module>
+

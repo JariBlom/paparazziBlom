@@ -1,7 +1,7 @@
 <!DOCTYPE airframe SYSTEM "../airframe.dtd">
 
-<airframe name="bebop_avoider">
-  <description>Vision Course TUDelft V2018
+<airframe name="bebop_ibvs">
+  <description>Image Based Visual Servoing with the Bebop
   </description>
 
 
@@ -55,10 +55,10 @@
       <define name="CV_AE_AWB_AV" value="1" />
       <define name="CV_AE_AWB_VERBOSE" value="0" />
     </module-->
-    <module name="cv_colorfilter">
+    <!-- <module name="cv_colorfilter">
       <define name="COLORFILTER_CAMERA" value="front_camera" />
-    </module>
-    <module name="orange_avoider" />
+    </module> -->    
+    
     <module name="video_rtp_stream">
       <define name="VIEWVIDEO_CAMERA" value="front_camera" />
       <define name="VIEWVIDEO_FPS" value="18" />
@@ -68,8 +68,11 @@
       <define name="VIEWVIDEO_SHOT_PATH" value="/data/ftp/internal_000" />
       
       <define name="VIEWVIDEO_WRITE_VIDEO" value="FALSE" />
-      <define name="VIEWVIDEO_VIDEO_FILE" value="orangeAvoider" />
+      <define name="VIEWVIDEO_VIDEO_FILE" value="ibvsSim" />
     </module>
+    
+    <module name="pose_history"/>    
+    <module name="ibvs_sim" />
   </firmware>
 
   <commands>

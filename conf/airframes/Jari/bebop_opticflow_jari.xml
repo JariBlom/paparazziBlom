@@ -1,66 +1,53 @@
 <!DOCTYPE airframe SYSTEM "../airframe.dtd">
 
-<airframe name="bebop_avoider">
-  <description>Vision Course TUDelft V2018
+<airframe name="bebop_opticflow">
+  <description>Bebop, hover with optical flow from bottom camera
   </description>
-
 
   <firmware name="rotorcraft">
     <target name="ap" board="bebop"/>
     <target name="nps" board="pc">
       <module name="fdm" type="gazebo"/>
-    </target>
+    </target>    
 
-    <!-- Front Camera parameters -->
-    <define name="MT9F002_INITIAL_OFFSET_X" value="0.09" /> <!-- Offset from center position [-0.5..0.5]. Set to 0.09 to center horizon. -->
-    <define name="MT9F002_INITIAL_OFFSET_Y" value="0." /> <!-- Offset from center position [-0.5..0.5] -->
-    <define name="MT9F002_OUTPUT_WIDTH" value="240" /> <!-- Output dimensions -->
-    <define name="MT9F002_OUTPUT_HEIGHT" value="520" /> <!-- Output dimensions -->
-    <define name="MT9F002_TARGET_FPS" value="30" />
-    <define name="MT9F002_TARGET_EXPOSURE" value="20" />
-    <define name="MT9F002_GAIN_GREEN1" value="4.0" />
-    <define name="MT9F002_GAIN_GREEN2" value="4.0" />
-    <define name="MT9F002_GAIN_RED" value="5.0" />
-    <define name="MT9F002_GAIN_BLUE" value="5.0" />
-    <define name="MT9F002_OUTPUT_SCALER" value="0.25"/>
-
-  <!-- Subsystem section -->
+    <!-- Subsystem section -->
     <module name="telemetry" type="transparent_udp"/>
     <module name="radio_control" type="datalink"/>
     <module name="motor_mixing"/>
     <module name="actuators" type="bebop"/>
     <module name="imu" type="bebop"/>
-    <module name="gps" type="datalink"/>
+    <module name="gps" type="datalink"/> <!-- Optitrack -->
     <module name="stabilization" type="indi_simple"/>
-    <module name="stabilization" type="rate_indi"/>
     <module name="ahrs" type="int_cmpl_quat">
-      <configure name="USE_MAGNETOMETER" value="FALSE"/>
-      <define name="AHRS_USE_GPS_HEADING" value="TRUE"/>
+      <configure name="USE_MAGNETOMETER" value="TRUE"/>
+      <define name="AHRS_USE_GPS_HEADING" value="FALSE"/>
     </module>
-    <module name="ins" type="extended"/>
-    <!-- <module name="guidance" type="indi"> <define name="GUIDANCE_INDI_SPECIFIC_FORCE_GAIN" 
-			value="-500.0"/> <define name="GUIDANCE_INDI_THRUST_DYNAMICS" value="0.1"/> 
-			<define name="GUIDANCE_INDI_RC_DEBUG" value="TRUE"/> </module> -->
+    <module name="ins" type="hff_extended"/>
     
-    <!--module name="geo_mag"/-->
+    <module name="geo_mag"/>
     <module name="air_data"/>
-    <!--module name="send_imu_mag_current"/-->
-    <module name="logger_file">
-      <define name="FILE_LOGGER_PATH" value="/data/ftp/internal_000"/>
+    <module name="send_imu_mag_current"/>
+    <module name="pose_history"/>
+    <module name="video_thread"/>
+
+    <module name="cv_opticflow">
+      <define name="OPTICFLOW_CAMERA" value="bottom_camera"/>
+      <define name="MAX_HORIZON" value="10"/>
+      <define name="OPTICFLOW_FX" value="347.22222222"/> <!-- 2.5 / (3.6 * 2.0) * 1000 -->
+      <define name="OPTICFLOW_FY" value="347.22222222"/> <!-- 2.5 / (3.6 * 2.0) * 1000 -->
+      <define name="OPTICFLOW_FOV_W" value="0.665499265"/> <!-- 2 * arctan(240 / (2*347.22222222)) -->
+      <define name="OPTICFLOW_FOV_H" value="0.665499265"/> <!-- 2 * arctan(240 / (2*347.22222222)) -->
+      <define name="OPTICFLOW_DEROTATION_CORRECTION_FACTOR_X" value="0.8"/> <!--Obtained from a linefit-->
+      <define name="OPTICFLOW_DEROTATION_CORRECTION_FACTOR_Y" value="0.85"/> <!--Obtained from a linefit-->
     </module>
 
-    <!-- Video/Camera modules -->
-    <module name="video_thread" />
-    <!--module name="cv_ae_awb">
-      <define name="CV_AE_AWB_AV" value="1" />
-      <define name="CV_AE_AWB_VERBOSE" value="0" />
-    </module-->
-    <module name="cv_colorfilter">
-      <define name="COLORFILTER_CAMERA" value="front_camera" />
+    <module name="video_capture">
+      <define name="VIDEO_CAPTURE_CAMERA" value="bottom_camera"/>
+      <define name="VIDEO_CAPTURE_PATH" value="/data/ftp/internal_000/images"/>
     </module>
-    <module name="orange_avoider" />
+    
     <module name="video_rtp_stream">
-      <define name="VIEWVIDEO_CAMERA" value="front_camera" />
+      <define name="VIEWVIDEO_CAMERA" value="bottom_camera" />
       <define name="VIEWVIDEO_FPS" value="18" />
       <define name="VIEWVIDEO_STREAM_VIDEO" value="TRUE" />
       <define name="VIEWVIDEO_DOWNSIZE_FACTOR" value="1" />
@@ -68,8 +55,14 @@
       <define name="VIEWVIDEO_SHOT_PATH" value="/data/ftp/internal_000" />
       
       <define name="VIEWVIDEO_WRITE_VIDEO" value="FALSE" />
-      <define name="VIEWVIDEO_VIDEO_FILE" value="orangeAvoider" />
+      <define name="VIEWVIDEO_VIDEO_FILE" value="ibvsSim" />
     </module>
+
+    <!--module name="video_rtp_stream">
+      <define name="VIEWVIDEO_CAMERA" value="bottom_camera"/>
+      <define name="VIEWVIDEO_DOWNSIZE_FACTOR" value="1"/>
+      <define name="VIEWVIDEO_QUALITY_FACTOR" value="60"/>
+    </module-->
   </firmware>
 
   <commands>

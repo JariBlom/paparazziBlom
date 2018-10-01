@@ -42,7 +42,7 @@
 
     <module name="cv_colorfilter">
       <define name="COLORFILTER_CAMERA" value="front_camera"/>
-      <!--define name="COLORFILTER_SEND_OBSTACLE" value="TRUE"/-->  <!-- If you want to test out the guided flightplan, uncomment this define-->  
+      <define name="COLORFILTER_SEND_OBSTACLE" value="TRUE"/>  <!-- If you want to test out the guided flightplan, uncomment this define  --> 
     </module>
 
     <module name="video_rtp_stream">
@@ -193,14 +193,20 @@
     <define name="ACTUATOR_NAMES" value="nw_motor, ne_motor, se_motor, sw_motor" type="string[]"/>
     <define name="JSBSIM_MODEL" value="simple_ardrone2" type="string"/>
     <define name="SENSORS_PARAMS" value="nps_sensors_params_ardrone2.h" type="string"/>
+    <!-- Added for using video inputs and gazebo -->
+    <define name="SIMULATE_VIDEO" value="1"/>
+    <define name="BYPASS_AHRS" value="1"/>
+	<define name="BYPASS_INS" value="1"/>
+    <define name="GAZEBO_WORLD" value="cyberzoo_orange_poles.world" type="string"/>
+    <define name="GAZEBO_AC_NAME" value="ardrone" type="string"/>
   </section>
   <include href="conf/simulator/gazebo/airframes/ardrone2.xml"/>
 
   <section name="AUTOPILOT">
-    <define name="MODE_STARTUP" value="AP_MODE_NAV"/>
+    <define name="MODE_STARTUP" value="AP_MODE_GUIDED"/>
     <define name="MODE_MANUAL" value="AP_MODE_ATTITUDE_DIRECT"/>
     <define name="MODE_AUTO1" value="AP_MODE_ATTITUDE_Z_HOLD"/>
-    <define name="MODE_AUTO2" value="AP_MODE_NAV"/>
+    <define name="MODE_AUTO2" value="AP_MODE_GUIDED"/>
   </section>
 
   <section name="BAT">
