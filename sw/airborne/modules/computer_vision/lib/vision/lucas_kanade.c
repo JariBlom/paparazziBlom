@@ -70,7 +70,7 @@
  *   + [d] calculate the additional flow step and possibly terminate the iteration
  * - (5) use calculated flow as initial flow estimation for next level of pyramid
  */
-struct flow_t *opticFlowLK(struct image_t *new_img, struct image_t *old_img, struct point_t *points,
+struct flow_t *opticFlowLK(struct image_t *new_img, struct image_t *old_img, struct point_tf *points,
                            uint16_t *points_cnt, uint16_t half_window_size,
                            uint16_t subpixel_factor, uint8_t max_iterations, uint8_t step_threshold, uint8_t max_points, uint8_t pyramid_level)
 {
@@ -250,7 +250,7 @@ struct flow_t *opticFlowLK(struct image_t *new_img, struct image_t *old_img, str
  * @param[in] max_point The maximum amount of points to track, we skip x points and then take a point.
  * @return The vectors from the original *points in subpixels
  */
-struct flow_t *opticFlowLK_flat(struct image_t *new_img, struct image_t *old_img, struct point_t *points, uint16_t *points_cnt,
+struct flow_t *opticFlowLK_flat(struct image_t *new_img, struct image_t *old_img, struct point_tf *points, uint16_t *points_cnt,
                                 uint16_t half_window_size, uint16_t subpixel_factor, uint8_t max_iterations, uint8_t step_threshold, uint16_t max_points)
 {
   // A straightforward one-level implementation of Lucas-Kanade.

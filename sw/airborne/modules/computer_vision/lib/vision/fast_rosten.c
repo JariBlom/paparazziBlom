@@ -49,7 +49,7 @@ static void fast_make_offsets(int32_t *pixel, uint16_t row_stride, uint8_t pixel
  * @param[in] **ret_corners pointer to the array which contains the corners that were detected.
  * @param[in] *roi array of format [x0 y0 x1 y1] describing the region of interest in the image where the corners will be detected. If null, the whole image is used.
 */
-void fast9_detect(struct image_t *img, uint8_t threshold, uint16_t min_dist, uint16_t x_padding, uint16_t y_padding, uint16_t *num_corners, uint16_t *ret_corners_length, struct point_t **ret_corners, uint16_t *roi)
+void fast9_detect(struct image_t *img, uint8_t threshold, uint16_t min_dist, uint16_t x_padding, uint16_t y_padding, uint16_t *num_corners, uint16_t *ret_corners_length, struct point_tf **ret_corners, uint16_t *roi)
 {
 
   uint16_t corner_cnt = *num_corners;

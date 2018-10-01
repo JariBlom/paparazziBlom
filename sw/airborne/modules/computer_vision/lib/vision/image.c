@@ -551,7 +551,7 @@ int32_t image_multiply(struct image_t *img_a, struct image_t *img_b, struct imag
  * @param[in] *points The points to sohw
  * @param[in] *points_cnt The amount of points to show
  */
-void image_show_points(struct image_t *img, struct point_t *points, uint16_t points_cnt)
+void image_show_points(struct image_t *img, struct point_tf *points, uint16_t points_cnt)
 {
   uint8_t color[4];
   color[0] = 255;
@@ -573,7 +573,7 @@ void image_show_points(struct image_t *img, struct point_t *points, uint16_t poi
  * @param[in] *color The color of the points as a [U, Y1, V, Y2] uint8_t array, or a uint8_t value pointer for grayscale images.
  *                   Example colors: white = {127, 255, 127, 255}, green = {0, 127, 0, 127};
  */
-void image_show_points_color(struct image_t *img, struct point_t *points, uint16_t points_cnt, uint8_t *color)
+void image_show_points_color(struct image_t *img, struct point_tf *points, uint16_t points_cnt, uint8_t *color)
 {
   uint8_t *img_buf = (uint8_t *)img->buf;
   uint8_t pixel_width = (img->type == IMAGE_YUV422) ? 2 : 1;
@@ -749,7 +749,7 @@ void image_draw_rectangle(struct image_t *img, int x_min, int x_max, int y_min, 
  *                   Example colors: white = {127, 255, 127, 255}, green = {0, 127, 0, 127};
  * @param[in] size_crosshair Actually the half size of the cross hair
  */
-void image_draw_crosshair(struct image_t *img, struct point_t *loc, uint8_t *color, unsigned int size_crosshair)
+void image_draw_crosshair(struct image_t *img, struct point_tf *loc, uint8_t *color, unsigned int size_crosshair)
 {
   struct point_t from, to;
 

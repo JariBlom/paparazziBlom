@@ -283,7 +283,7 @@ void opticflow_calc_init(struct opticflow_t *opticflow)
   opticflow->fast9_min_distance = OPTICFLOW_FAST9_MIN_DISTANCE;
   opticflow->fast9_padding = OPTICFLOW_FAST9_PADDING;
   opticflow->fast9_rsize = 512;
-  opticflow->fast9_ret_corners = calloc(opticflow->fast9_rsize, sizeof(struct point_t));
+  opticflow->fast9_ret_corners = calloc(opticflow->fast9_rsize, sizeof(struct point_tf));
 
   opticflow->corner_method = OPTICFLOW_CORNER_METHOD;
   opticflow->actfast_long_step = OPTICFLOW_ACTFAST_LONG_STEP;
@@ -560,13 +560,16 @@ bool calc_fast9_lukas_kanade(struct opticflow_t *opticflow, struct image_t *img,
 			  (float)unsorted_vectors[i].flow_x / opticflow->subpixel_factor));
 	  opticflow->fast9_ret_corners[i].y = (uint32_t)(round((float)(opticflow->fast9_ret_corners[i].y) +
 			  (float)unsorted_vectors[i].flow_y / opticflow->subpixel_factor));
-	  opticflow->fast9_ret_corners[i].x_sub = (uint16_t)((unsorted_vectors[i].pos.x + unsorted_vectors[i].flow_x) % opticflow->subpixel_factor);
-	        opticflow->fast9_ret_corners[i].y_sub = (uint16_t)((unsorted_vectors[i].pos.y + unsorted_vectors[i].flow_y) % opticflow->subpixel_factor);
+	  opticflow->fast9_ret_corners[i].x_full = (uint32_t)(round(10*(opticflow->fast9_ret_corners[i].x +
+	    	  (float)unsorted_vectors[i].flow_x / opticflow->subpixel_factor)));
+	  opticflow->fast9_ret_corners[i].y_full = (uint32_t)(round(10*(opticflow->fast9_ret_corners[i].y +
+	          (float)unsorted_vectors[i].flow_y / opticflow->subpixel_factor)));
 	  opticflow->fast9_ret_corners[i].count = unsorted_vectors[i].pos.count;
 
-	  printf("Corner location (%d,%d) \n",opticflow->fast9_ret_corners[i].x,opticflow->fast9_ret_corners[i].y);
-	  /*printf("Corner location full (%d,%d) \n",opticflow->fast9_ret_corners[i].x_full,opticflow->fast9_ret_corners[i].y_full);*/
-	  printf("Corner location full (%d,%d) \n",opticflow->fast9_ret_corners[i].x_sub,opticflow->fast9_ret_corners[i].y_sub);
+	  printf("Corner location %d: (%d,%d), (%d,%d) \n",i,opticflow->fast9_ret_corners[i].x,
+			  opticflow->fast9_ret_corners[i].y, opticflow->fast9_ret_corners[i].x_full,
+			  opticflow->fast9_ret_corners[i].y_full);
+
 	}
   }
   free(vectors);
@@ -596,10 +599,8 @@ static void manage_flow_features(struct image_t *img, struct opticflow_t *opticf
         opticflow->fast9_ret_corners[c1].x = opticflow->fast9_ret_corners[result->corner_cnt - 1].x;
         opticflow->fast9_ret_corners[c1].y = opticflow->fast9_ret_corners[result->corner_cnt - 1].y;
         opticflow->fast9_ret_corners[c1].count = opticflow->fast9_ret_corners[result->corner_cnt - 1].count;
-        /*opticflow->fast9_ret_corners[c1].x_full = opticflow->fast9_ret_corners[result->corner_cnt - 1].x_full;
-        opticflow->fast9_ret_corners[c1].y_full = opticflow->fast9_ret_corners[result->corner_cnt - 1].y_full;*/
-        opticflow->fast9_ret_corners[c1].x_sub = opticflow->fast9_ret_corners[result->corner_cnt - 1].x_sub;
-        opticflow->fast9_ret_corners[c1].y_sub = opticflow->fast9_ret_corners[result->corner_cnt - 1].y_sub;
+        opticflow->fast9_ret_corners[c1].x_full = opticflow->fast9_ret_corners[result->corner_cnt - 1].x_full;
+        opticflow->fast9_ret_corners[c1].y_full = opticflow->fast9_ret_corners[result->corner_cnt - 1].y_full;
         // decrease the number of corners:
         result->corner_cnt--;
         exists = true;
@@ -647,7 +648,7 @@ static void manage_flow_features(struct image_t *img, struct opticflow_t *opticf
       roi[2] = roi[0] + (img->w / root_regions);
       roi[3] = roi[1] + (img->h / root_regions);
 
-      struct point_t *new_corners = calloc(opticflow->fast9_rsize, sizeof(struct point_t));
+      struct point_tf *new_corners = calloc(opticflow->fast9_rsize, sizeof(struct point_tf));
       uint16_t new_count = 0;
 
       fast9_detect(&opticflow->prev_img_gray, opticflow->fast9_threshold, opticflow->fast9_min_distance,
@@ -669,10 +670,8 @@ static void manage_flow_features(struct image_t *img, struct opticflow_t *opticf
           opticflow->fast9_ret_corners[result->corner_cnt].x = new_corners[j].x;
           opticflow->fast9_ret_corners[result->corner_cnt].y = new_corners[j].y;
           opticflow->fast9_ret_corners[result->corner_cnt].count = 0;
-          /*opticflow->fast9_ret_corners[result->corner_cnt].x_full = new_corners[j].x * 10;
-          opticflow->fast9_ret_corners[result->corner_cnt].y_full = new_corners[j].y * 10;*/
-          opticflow->fast9_ret_corners[result->corner_cnt].x_sub = 0;
-          opticflow->fast9_ret_corners[result->corner_cnt].y_sub = 0;
+          opticflow->fast9_ret_corners[result->corner_cnt].x_full = new_corners[j].x * 10;
+          opticflow->fast9_ret_corners[result->corner_cnt].y_full = new_corners[j].y * 10;
           result->corner_cnt++;
 
           if (result->corner_cnt >= opticflow->fast9_rsize) {
@@ -959,8 +958,8 @@ static void manage_flow_features_object(struct image_t *img, struct opticflow_t 
 		opticflow->fast9_ret_corners[c1].x = opticflow->fast9_ret_corners[result->corner_cnt - 1].x;
 		opticflow->fast9_ret_corners[c1].y = opticflow->fast9_ret_corners[result->corner_cnt - 1].y;
 		opticflow->fast9_ret_corners[c1].count = opticflow->fast9_ret_corners[result->corner_cnt - 1].count;
-		/*opticflow->fast9_ret_corners[c1].x_full = opticflow->fast9_ret_corners[result->corner_cnt - 1].x_full;
-		opticflow->fast9_ret_corners[c1].y_full = opticflow->fast9_ret_corners[result->corner_cnt - 1].y_full;*/
+		opticflow->fast9_ret_corners[c1].x_full = opticflow->fast9_ret_corners[result->corner_cnt - 1].x_full;
+		opticflow->fast9_ret_corners[c1].y_full = opticflow->fast9_ret_corners[result->corner_cnt - 1].y_full;
 
 
 		// decrease the number of corners:
