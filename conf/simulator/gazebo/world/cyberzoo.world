@@ -43,7 +43,7 @@
     </include>
     
     <include>
-      <uri>model://traffic_mat</uri>
+      <uri>model://airport_mat</uri>
       <pose>0 0 0 0 0 0</pose>
     </include>
   </world>

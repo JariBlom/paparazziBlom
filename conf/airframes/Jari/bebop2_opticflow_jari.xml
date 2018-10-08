@@ -52,11 +52,11 @@
       <define name="OPTICFLOW_DEROTATION_CORRECTION_FACTOR_Y" value="0.85"/> <!--Obtained from a linefit--> 
     </module>
 
-    <!--module name="video_capture">
+    <module name="video_capture">
       <define name="VIDEO_CAPTURE_CAMERA" value="bottom_camera"/>
-      <!-- <define name="VIDEO_CAPTURE_CAMERA" value="front_camera"/>>
+      <!-- <define name="VIDEO_CAPTURE_CAMERA" value="front_camera"/ -->
       <define name="VIDEO_CAPTURE_PATH" value="/data/ftp/internal_000/images"/>
-    </module-->
+    </module>
 
     <!-- <module name="optical_flow_landing.xml"/> -->
     <!-- <module name="opticflow_hover.xml"/> -->

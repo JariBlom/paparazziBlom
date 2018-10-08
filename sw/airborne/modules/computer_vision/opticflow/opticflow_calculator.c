@@ -556,14 +556,12 @@ bool calc_fast9_lukas_kanade(struct opticflow_t *opticflow, struct image_t *img,
     }*/
     // Try the old system
 	for (uint16_t i = 0; i < result->tracked_cnt; i++) {
-	  opticflow->fast9_ret_corners[i].x = (uint32_t)(round((float)(opticflow->fast9_ret_corners[i].x) +
-			  (float)unsorted_vectors[i].flow_x / opticflow->subpixel_factor));
-	  opticflow->fast9_ret_corners[i].y = (uint32_t)(round((float)(opticflow->fast9_ret_corners[i].y) +
-			  (float)unsorted_vectors[i].flow_y / opticflow->subpixel_factor));
-	  opticflow->fast9_ret_corners[i].x_full = (uint32_t)(round(10*(opticflow->fast9_ret_corners[i].x +
-	    	  (float)unsorted_vectors[i].flow_x / opticflow->subpixel_factor)));
-	  opticflow->fast9_ret_corners[i].y_full = (uint32_t)(round(10*(opticflow->fast9_ret_corners[i].y +
-	          (float)unsorted_vectors[i].flow_y / opticflow->subpixel_factor)));
+	  opticflow->fast9_ret_corners[i].x_full = (uint32_t)(round(opticflow->fast9_ret_corners[i].x_full +
+			  10*(float)unsorted_vectors[i].flow_x / opticflow->subpixel_factor));
+	  opticflow->fast9_ret_corners[i].y_full = (uint32_t)(round(opticflow->fast9_ret_corners[i].y_full +
+			  10*(float)unsorted_vectors[i].flow_y / opticflow->subpixel_factor));
+	  opticflow->fast9_ret_corners[i].x = (uint32_t)(round((float)opticflow->fast9_ret_corners[i].x_full/10));
+	  opticflow->fast9_ret_corners[i].y = (uint32_t)(round((float)opticflow->fast9_ret_corners[i].y_full/10));
 	  opticflow->fast9_ret_corners[i].count = unsorted_vectors[i].pos.count;
 
 	  printf("Corner location %d: (%d,%d), (%d,%d) \n",i,opticflow->fast9_ret_corners[i].x,
