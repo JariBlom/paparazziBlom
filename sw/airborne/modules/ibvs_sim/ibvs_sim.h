@@ -14,15 +14,28 @@
 #define IBVS_SIM_H
 
 #include "math/pprz_geodetic_double.h"
+#include "modules/computer_vision/opticflow_module.h"
 
 extern void ibvs_sim_init();
 extern void ibvs_sim_periodic();
 
 // Define Camera coordinate system
 struct Coor_camera{
-	float x; // when both are between 0 and 1 they are in view
-	float y;
+	int x; // With (0,0) at the center of the camera frame
+	int y;
+	int xv; // Coordinate in the virtual camera frame
+	int yv; //
 };
+
+struct Tracked_object{
+	struct Coor_camera *corner_loc;
+	float L_matrix[2][3];
+	bool ibvs_go;
+	bool set_guidance;
+};
+
+// Needed for settings
+extern struct Tracked_object object_to_track;
 
 #endif
 

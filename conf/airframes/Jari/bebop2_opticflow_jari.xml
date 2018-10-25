@@ -49,7 +49,14 @@
       <define name="OPTICFLOW_FOV_W" value="0.665499265"/> <!-- 2 * arctan(240 / (2*347.22222222)) -->
       <define name="OPTICFLOW_FOV_H" value="0.665499265"/> <!-- 2 * arctan(240 / (2*347.22222222)) -->
       <define name="OPTICFLOW_DEROTATION_CORRECTION_FACTOR_X" value="0.8"/> <!--Obtained from a linefit--> 
-      <define name="OPTICFLOW_DEROTATION_CORRECTION_FACTOR_Y" value="0.85"/> <!--Obtained from a linefit--> 
+      <define name="OPTICFLOW_DEROTATION_CORRECTION_FACTOR_Y" value="0.85"/> <!--Obtained from a linefit-->      
+    </module>
+    
+    <!-- Add ibvs module here -->
+    <module name="ibvs_sim">
+    	<define name="IBVS_CAMERA" value="bottom_camera"/>
+    	<define name="IBVS_FX" value="347.22222222"/> <!-- 2.5 / (3.6 * 2.0) * 1000 -->
+        <define name="IBVS_FY" value="347.22222222"/> <!-- 2.5 / (3.6 * 2.0) * 1000 -->
     </module>
 
     <module name="video_capture">

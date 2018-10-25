@@ -43,8 +43,8 @@
     </include>
     
     <include>
-      <uri>model://airport_mat</uri>
-      <pose>0 0 0 0 0 0</pose>
+      <uri>model://metal_panel1</uri>
+      <pose>0 1.0 0 1.571 0 0</pose>
     </include>
   </world>
 </sdf>

@@ -76,10 +76,14 @@ struct opticflow_t {
   int actfast_min_gradient;       ///< Threshold that decides when there is sufficient texture for edge following
   int actfast_gradient_method;    ///< Whether to use a simple or Sobel filter
 
+  // Object tracking variables
+  bool object_tracking_init;
   bool object_tracking;
+  uint8_t nr_of_object_corners;
+  uint8_t nr_of_corners_detected;
+  bool ibvs_init;
 
 };
-
 
 void opticflow_calc_init(struct opticflow_t *opticflow);
 bool opticflow_calc_frame(struct opticflow_t *opticflow, struct image_t *img,
