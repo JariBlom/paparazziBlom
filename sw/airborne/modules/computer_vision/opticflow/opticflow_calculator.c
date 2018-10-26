@@ -53,7 +53,7 @@
 #define ACT_FAST 1
 // TODO: these are now adapted, but perhaps later could be a setting:
 uint16_t n_time_steps = 10;
-uint16_t n_agents = 25;
+uint16_t n_agents = 4;
 
 // What methods are run to determine divergence, lateral flow, etc.
 // SIZE_DIV looks at line sizes and only calculates divergence
@@ -210,6 +210,16 @@ PRINT_CONFIG_VAR(OPTICFLOW_ACTFAST_LONG_STEP)
 #endif
 PRINT_CONFIG_VAR(OPTICFLOW_ACTFAST_SHORT_STEP)
 
+#ifndef OPTICFLOW_ACTFAST_LONG_STEP_OBJECT
+#define OPTICFLOW_ACTFAST_LONG_STEP_OBJECT 3
+#endif
+PRINT_CONFIG_VAR(OPTICFLOW_ACTFAST_LONG_STEP_OBJECT)
+
+#ifndef OPTICFLOW_ACTFAST_SHORT_STEP_OBJECT
+#define OPTICFLOW_ACTFAST_SHORT_STEP_OBJECT 2
+#endif
+PRINT_CONFIG_VAR(OPTICFLOW_ACTFAST_SHORT_STEP_OBJECT)
+
 #ifndef OPTICFLOW_ACTFAST_GRADIENT_METHOD
 #define OPTICFLOW_ACTFAST_GRADIENT_METHOD 1
 #endif
@@ -258,6 +268,7 @@ PRINT_CONFIG_VAR(OPTICFLOW_IBVS_INIT)
 #include "filters/median_filter.h"
 struct MedianFilter3Float vel_filt;
 struct FloatRMat body_to_cam;
+static uint16_t run_count = 0;
 
 /* Functions only used here */
 static uint32_t timeval_diff(struct timeval *starttime, struct timeval *finishtime);
@@ -380,7 +391,7 @@ bool calc_fast9_lukas_kanade(struct opticflow_t *opticflow, struct image_t *img,
 			  printf("Done initializing \n");
 		  }
 		  else if(result->corner_cnt < opticflow->max_track_corners){
-			  printf("Should be finding new corners \n");
+			  /*printf("Should be finding new corners \n");*/
 			  manage_flow_features_object(img, opticflow, result);
 		  }
 	  }
@@ -456,15 +467,24 @@ bool calc_fast9_lukas_kanade(struct opticflow_t *opticflow, struct image_t *img,
   // *************************************************************************************
 
   // When in object tracking mode, detect around predicted position
-  /*if(opticflow->feature_management && opticflow->object_tracking){
-	  act_fast(&opticflow->prev_img_gray, opticflow->fast9_threshold, &result->corner_cnt,
-	                 &opticflow->fast9_ret_corners, n_agents, n_time_steps,
-	                 opticflow->actfast_long_step, opticflow->actfast_short_step, opticflow->actfast_min_gradient,
-	                 opticflow->actfast_gradient_method);
-  }*/
+  // But only after the first couple of predicted corners
+  if(opticflow->feature_management && opticflow->object_tracking){
+	  act_fast_object(&opticflow->prev_img_gray, opticflow->fast9_threshold, &result->corner_cnt,
+						 &opticflow->fast9_ret_corners, n_agents, n_time_steps,
+						 opticflow->actfast_long_step, opticflow->actfast_short_step, opticflow->actfast_min_gradient,
+						 opticflow->actfast_gradient_method);
+	  printf("Number of corners: %d \n",result->corner_cnt);
+	  for (int16_t i = 0; i<result->corner_cnt; i++){
+		  printf("Corner found at (%d,%d)\n",opticflow->fast9_ret_corners[i].x,opticflow->fast9_ret_corners[i].y);
+	  }
+  }
 
   // Execute a Lucas Kanade optical flow
   result->tracked_cnt = result->corner_cnt;
+  // When in object_tracking mode tracked_cnt should be constant
+  if(opticflow->feature_management && opticflow->object_tracking){
+	  result->tracked_cnt = opticflow->nr_of_object_corners;
+  }
   struct flow_t *vectors = opticFlowLK(&opticflow->img_gray, &opticflow->prev_img_gray, opticflow->fast9_ret_corners,
                                        &result->tracked_cnt,
                                        opticflow->window_size / 2, opticflow->subpixel_factor, opticflow->max_iterations,
@@ -579,7 +599,6 @@ bool calc_fast9_lukas_kanade(struct opticflow_t *opticflow, struct image_t *img,
     opticflow->nr_of_corners_detected = result->corner_cnt;
     // Calculate the new positions 1 decimal accurate to save for the next calculation
     // However use the integer version to display
-    // Try the old system
 	for (uint16_t i = 0; i < result->tracked_cnt; i++) {
 	  opticflow->fast9_ret_corners[i].x_full = (uint32_t)(round(opticflow->fast9_ret_corners[i].x_full +
 			  10*(float)unsorted_vectors[i].flow_x / opticflow->subpixel_factor));
@@ -968,7 +987,7 @@ static void manage_flow_features_object(struct image_t *img, struct opticflow_t 
 		struct opticflow_result_t *result)
 {
   // Alert: we have lost a corner
-  printf("Corner lost \n");
+ /* printf("Corner lost \n");*/
 }
 
 // Initialize object to be tracked
@@ -977,6 +996,8 @@ void init_object_tracking(struct opticflow_t *opticflow){
   opticflow->max_track_corners = NR_OF_CORNERS_TO_TRACK;
   opticflow->object_tracking_init = false;
   opticflow->ibvs_init = true;
+  opticflow->actfast_long_step = OPTICFLOW_ACTFAST_LONG_STEP_OBJECT;
+  opticflow->actfast_short_step = OPTICFLOW_ACTFAST_SHORT_STEP_OBJECT;
   // Manually define the corner locations here
   int corner_array[NR_OF_CORNERS_TO_TRACK][2] = {
 		  {60,80},
