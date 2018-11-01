@@ -77,14 +77,27 @@ struct opticflow_t {
   int actfast_gradient_method;    ///< Whether to use a simple or Sobel filter
 
   // Object tracking variables
-  bool object_tracking_init;
+  bool object_tracking_set;
   bool object_tracking;
   uint8_t nr_of_object_corners;
   uint8_t nr_of_corners_detected;
   bool ibvs_init;
-
+  bool shape_correct;
+  struct matches *match_struct;
+  uint32_t match_min;
+  uint32_t match_max;
+  uint16_t roi[4];
+  uint16_t roi_full[4];
+  uint16_t roih;
+  uint16_t roiw;
 };
 
+// Used for shape correction
+struct matches{
+	char match_type;
+	uint8_t corner_1;
+	uint8_t corner_2;
+};
 void opticflow_calc_init(struct opticflow_t *opticflow);
 bool opticflow_calc_frame(struct opticflow_t *opticflow, struct image_t *img,
                           struct opticflow_result_t *result);

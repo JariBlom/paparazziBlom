@@ -19,8 +19,8 @@
     <waypoint name="TD" x="0.8" y="-1.7"/>
     <waypoint name="GOAL" x="1.9" y="0.0"/>
     <waypoint name="TRAJECTORY" x="1.9" y="0.0"/>
-    <waypoint name="P1" x="0.0" y="0.3"/>
-    <waypoint name="P2" x="0.0" y="-.3"/>
+    <waypoint name="P1" x="0.1" y="0.3"/>
+    <waypoint name="P2" x="-0.1" y="-.3"/>
     <waypoint name="P3" x="-.3" y="-.3"/>
     <waypoint lat="51.9905836" lon="4.3767729" name="_CZ1"/>
     <waypoint lat="51.9906365" lon="4.3767138" name="_CZ2"/>
@@ -109,24 +109,26 @@
       <stay wp="STDBY"/>
     </block>
     <block key="g" name="START" strip_button="Go" strip_icon="lookfore.png">
-      <call_once fun="NavSetWaypointHere(WP_GOAL)"/>        
-    </block> 
-    <!-- <block name="IBVS_INIT" strip_button="IBVS_INIT">  
-      <stay wp="P3"/>
-    </block>     
-    <block name="IBVS_GO" strip_button="IBVS_GO">   
-      <set var="object_to_track.set_guidance" value="TRUE" />        
-      <set var="object_to_track.ibvs_go" value="TRUE" />                 
-    </block>    -->    
+      <call_once fun="NavSetWaypointHere(WP_GOAL)"/>
+      <set var="opticflow.object_tracking" value="TRUE"/>
+      <set var="opticflow.object_tracking_set" value="TRUE"/>
+      <deroute block="Standby"/>  
+    </block>                 
     <block name="IBVS1" strip_button="IBVS1">  
       <go wp="P1"/>      
-      <set var="opticflow.object_tracking" value="TRUE"/>   
-      <set var="opticflow.object_tracking_init" value="TRUE"/> 
     </block> 
     <block name="IBVS2" strip_button="IBVS2">      
       <go wp="P2"/>
       <deroute block="IBVS1"/>          
+    </block>  
+    <block name="IBVS_INIT" strip_button="IBVS_INIT">  
+      <!-- <set var="opticflow.shape_correct" value="TRUE"/> -->
+      <go wp="P3"/>
     </block>     
+    <block name="IBVS_GO" strip_button="IBVS_GO">   
+      <!-- <set var="object_to_track.set_guidance" value="TRUE" />      -->   
+      <set var="object_to_track.ibvs_go" value="TRUE" />   
+    </block> 
     <block key="l" name="Land here" strip_button="Land Here" strip_icon="land-right.png">
       <call_once fun="NavSetWaypointHere(WP_TD)"/>
       <go wp="TD"/>

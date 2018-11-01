@@ -74,7 +74,6 @@ struct flow_t *opticFlowLK(struct image_t *new_img, struct image_t *old_img, str
                            uint16_t *points_cnt, uint16_t half_window_size,
                            uint16_t subpixel_factor, uint8_t max_iterations, uint8_t step_threshold, uint8_t max_points, uint8_t pyramid_level)
 {
-
   // if no pyramids, use the old code:
   if (pyramid_level == 0) {
     // use the old code in this case:

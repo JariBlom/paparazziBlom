@@ -109,7 +109,7 @@ void ibvs_sim_init()
 	// There should also be a check if we got a result and if that result is usefull
     // ibvs_got_result = false;
 
-    cv_add_to_device(&IBVS_CAMERA, calc_ibvs_control, IBVS_FPS);
+  cv_add_to_device(&IBVS_CAMERA, calc_ibvs_control, IBVS_FPS);
 
     /*we should probably have something similar to this for IBVS
 	#if PERIODIC_TELEMETRY
@@ -167,7 +167,6 @@ void calc_frame_ibvs_control(struct opticflow_t *opticflow,struct Tracked_object
 	if(opticflow->object_tracking){
 		// Init object_tracking
 		if(opticflow->ibvs_init){
-			object_to_track->corner_loc = calloc(opticflow->nr_of_object_corners, sizeof(struct Coor_camera));
 			// Initialize L_matrix
 			for(i=0;i<2;i++){
 				for(j=0;j<3;j++){
@@ -180,12 +179,13 @@ void calc_frame_ibvs_control(struct opticflow_t *opticflow,struct Tracked_object
 			object_to_track->ibvs_go = IBVS_ON;
 			object_to_track->set_guidance = IBVS_SET_GUIDANCE;
 		}
+		object_to_track->corner_loc = calloc(opticflow->nr_of_corners_detected, sizeof(struct Coor_camera));
 		// Define corners in the camera frame, with (0,0) at the center of the frame
 		for(i=0;i<opticflow->nr_of_corners_detected;i++){
 			object_to_track->corner_loc[i].x = opticflow->fast9_ret_corners[i].x-x_center;
 			object_to_track->corner_loc[i].y = opticflow->fast9_ret_corners[i].y-y_center;
 		}
-
+		//printf("%d\n",sizeof(object_to_track->corner_loc));
 		// Rotate to virtual camera frame
 		euler_angles = stateGetNedToBodyEulers_f();
 		float R[3][3] = {
@@ -209,7 +209,7 @@ void calc_frame_ibvs_control(struct opticflow_t *opticflow,struct Tracked_object
 			pv[1][0] = res2[1][0]/beta;
 			object_to_track->corner_loc[k].xv = (uint32_t) pv[0][0];
 			object_to_track->corner_loc[k].yv = (uint32_t) pv[1][0];
-			}
+		}
 
 		// Calculate features
 		// Average x,y
@@ -230,8 +230,13 @@ void calc_frame_ibvs_control(struct opticflow_t *opticflow,struct Tracked_object
 			mu_02 += (object_to_track->corner_loc[i].yv-y_g)*(object_to_track->corner_loc[i].yv-y_g);
 			mu_11 += (object_to_track->corner_loc[i].xv-x_g)*(object_to_track->corner_loc[i].yv-y_g);
 		}
-		float s3 = sqrt((mu_2002star)/(mu_20 + mu_02));
-		float s4 = 0.5 * atan(2*mu_11/((l2/l1)*mu_20-(l1/l2)*mu_02));
+		free(object_to_track->corner_loc);
+		float s3 = sqrtf((mu_2002star)/(mu_20 + mu_02));
+		float s4 = 0.5 * atanf(2*mu_11/((l2/l1)*mu_20-(l1/l2)*mu_02));
+
+    // Change size of ROI based on mu_20 and mu_02
+
+
 
 		// Getting velocity commands
 		v_xstar = x_gain * (x_g-x_gstar);
@@ -246,9 +251,9 @@ void calc_frame_ibvs_control(struct opticflow_t *opticflow,struct Tracked_object
 				guidance_v_mode_changed(8);
 				object_to_track->set_guidance = false;
 			}
-			guidance_v_set_guided_vz(v_zstar);
-			guidance_h_set_guided_vel(v_xstar, v_ystar);
-			guidance_h_set_guided_heading_rate(r_star);
+			// guidance_v_set_guided_vz(v_zstar);
+			// guidance_h_set_guided_vel(v_xstar, v_ystar);
+			// guidance_h_set_guided_heading_rate(r_star);
 		}
 
 	}
