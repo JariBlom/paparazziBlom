@@ -37,6 +37,14 @@
 #include "lib/vision/image.h"
 #include "lib/v4l/v4l2.h"
 
+// Signed version of the point_tf created in image.h
+struct point_tf_signed{
+  int32_t x;             ///< The x coordinate of the point
+  int32_t y;             ///< The y coordinate of the point
+  int32_t x_full;         ///< The x subpixel coordinate of the point
+  int32_t y_full;         ///< The y subpixel coordinate of the point
+};
+
 struct opticflow_t {
   bool got_first_img;                 ///< If we got a image to work with
   bool just_switched_method;        ///< Boolean to check if methods has been switched (for reinitialization)
@@ -86,10 +94,19 @@ struct opticflow_t {
   struct matches *match_struct;
   uint32_t match_min;
   uint32_t match_max;
+
+  // ROI variables
+  struct point_tf roi_center;
+  struct point_tf cg_corners;
   uint16_t roi[4];
   uint16_t roi_full[4];
-  uint16_t roih;
-  uint16_t roiw;
+  float roih;
+  float roiw;
+  struct point_tf_signed offset_roi_cg;
+  bool offset_defined;
+  uint16_t previous_tracked_cnt;
+  struct point_tf *previous_fast9_ret_corners;
+
 };
 
 // Used for shape correction
@@ -98,6 +115,9 @@ struct matches{
 	uint8_t corner_1;
 	uint8_t corner_2;
 };
+
+
+
 void opticflow_calc_init(struct opticflow_t *opticflow);
 bool opticflow_calc_frame(struct opticflow_t *opticflow, struct image_t *img,
                           struct opticflow_result_t *result);

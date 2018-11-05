@@ -38,19 +38,19 @@
 #endif
 
 #ifndef IBVS_X_GAIN
-#define IBVS_X_GAIN -0.01		  // Control gain for servoing in the x-direction
+#define IBVS_X_GAIN 0.005		  // Control gain for servoing in the x-direction
 #endif
 
 #ifndef IBVS_Y_GAIN
-#define IBVS_Y_GAIN -0.01       // Control gain for servoing in the y-direction
+#define IBVS_Y_GAIN -0.005       // Control gain for servoing in the y-direction
 #endif
 
 #ifndef IBVS_Z_GAIN
-#define IBVS_Z_GAIN 0.01        // Control gain for servoing in the z-direction
+#define IBVS_Z_GAIN 0.001        // Control gain for servoing in the z-direction
 #endif
 
 #ifndef IBVS_YAW_GAIN
-#define IBVS_YAW_GAIN 0.01        // Control gain for servoing around the z-axis
+#define IBVS_YAW_GAIN 0.001        // Control gain for servoing around the z-axis
 #endif
 
 #ifndef IBVS_ON
@@ -87,8 +87,8 @@ float LX[3][1];
 float pv[2][1];
 struct Tracked_object object_to_track;
 float item;
-float x_gain = IBVS_X_GAIN;
-float y_gain = IBVS_Y_GAIN;
+float x_gain = -1*IBVS_X_GAIN;
+float y_gain = -1*IBVS_Y_GAIN;
 float z_gain = IBVS_Z_GAIN;
 float yaw_gain = IBVS_YAW_GAIN;
 
@@ -180,10 +180,10 @@ void calc_frame_ibvs_control(struct opticflow_t *opticflow,struct Tracked_object
 			object_to_track->set_guidance = IBVS_SET_GUIDANCE;
 		}
 		object_to_track->corner_loc = calloc(opticflow->nr_of_corners_detected, sizeof(struct Coor_camera));
-		// Define corners in the camera frame, with (0,0) at the center of the frame
+		// Define corners in the camera frame, with (0,0) at the center of the frame and y positive upwards
 		for(i=0;i<opticflow->nr_of_corners_detected;i++){
 			object_to_track->corner_loc[i].x = opticflow->fast9_ret_corners[i].x-x_center;
-			object_to_track->corner_loc[i].y = opticflow->fast9_ret_corners[i].y-y_center;
+			object_to_track->corner_loc[i].y = -1*(opticflow->fast9_ret_corners[i].y-y_center);
 		}
 		//printf("%d\n",sizeof(object_to_track->corner_loc));
 		// Rotate to virtual camera frame
@@ -234,28 +234,23 @@ void calc_frame_ibvs_control(struct opticflow_t *opticflow,struct Tracked_object
 		float s3 = sqrtf((mu_2002star)/(mu_20 + mu_02));
 		float s4 = 0.5 * atanf(2*mu_11/((l2/l1)*mu_20-(l1/l2)*mu_02));
 
-    // Change size of ROI based on mu_20 and mu_02
-
-
-
 		// Getting velocity commands
 		v_xstar = x_gain * (x_g-x_gstar);
 		v_ystar = y_gain * (y_g-y_gstar);
 		v_zstar = z_gain * (s3-s3_star);
 		r_star = yaw_gain * (s4-alpha_star);
+		printf("Commands to be given: (vx,vy) = (%f,%f)\n",v_xstar,v_ystar);
 		// Sending velocity commands
 		if(object_to_track->ibvs_go){
-
-			if(object_to_track->set_guidance){
-				guidance_h_mode_changed(10);
-				guidance_v_mode_changed(8);
-				object_to_track->set_guidance = false;
-			}
+      printf("In if statement set guidance\n");
+      guidance_h_mode_changed(10);
+      // guidance_v_mode_changed(8);
+			// Check what are x and y in the body frame by sending only one of the commands
+			// Probably x is forward right?
 			// guidance_v_set_guided_vz(v_zstar);
-			// guidance_h_set_guided_vel(v_xstar, v_ystar);
+			guidance_h_set_guided_vel(v_xstar,v_ystar);
 			// guidance_h_set_guided_heading_rate(r_star);
 		}
-
 	}
 }
 
