@@ -45,6 +45,13 @@ struct point_tf_signed{
   int32_t y_full;         ///< The y subpixel coordinate of the point
 };
 
+struct point_tfloat{
+  float x;             ///< The x coordinate of the point
+  float y;             ///< The y coordinate of the point
+  float x_full;         ///< The x subpixel coordinate of the point
+  float y_full;         ///< The y subpixel coordinate of the point
+};
+
 struct opticflow_t {
   bool got_first_img;                 ///< If we got a image to work with
   bool just_switched_method;        ///< Boolean to check if methods has been switched (for reinitialization)
@@ -106,6 +113,9 @@ struct opticflow_t {
   bool offset_defined;
   uint16_t previous_tracked_cnt;
   struct point_tf *previous_fast9_ret_corners;
+  float width_dist_ratio;
+  float height_dist_ratio;
+  struct point_tfloat av_dist;
 
 };
 

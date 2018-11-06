@@ -32,6 +32,7 @@ struct Tracked_object{
 	float L_matrix[2][3];
 	bool ibvs_go;
 	bool set_guidance;
+	struct Coor_camera object_cg;
 };
 
 // Needed for settings

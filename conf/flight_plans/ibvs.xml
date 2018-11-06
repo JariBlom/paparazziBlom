@@ -20,7 +20,7 @@
     <waypoint name="GOAL" x="1.9" y="0.0"/>
     <waypoint name="TRAJECTORY" x="1.9" y="0.0"/>
     <waypoint name="P1" x="0.1" y="0.3"/>
-    <waypoint name="P2" alt="3.0" x="-0.1" y="-.3"/>
+    <waypoint name="P2" alt="1.0" x="-0.1" y="-.3"/>
     <!-- <waypoint name="P3" alt="4.0" x="-.3" y="-.3"/> -->
     <waypoint name="P3" alt="4.0" x="-.7" y="-.7"/>
     <waypoint lat="51.9905836" lon="4.3767729" name="_CZ1"/>

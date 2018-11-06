@@ -179,13 +179,10 @@ void calc_frame_ibvs_control(struct opticflow_t *opticflow,struct Tracked_object
 			object_to_track->ibvs_go = IBVS_ON;
 			object_to_track->set_guidance = IBVS_SET_GUIDANCE;
 		}
-		object_to_track->corner_loc = calloc(opticflow->nr_of_corners_detected, sizeof(struct Coor_camera));
-		// Define corners in the camera frame, with (0,0) at the center of the frame and y positive upwards
-		for(i=0;i<opticflow->nr_of_corners_detected;i++){
-			object_to_track->corner_loc[i].x = opticflow->fast9_ret_corners[i].x-x_center;
-			object_to_track->corner_loc[i].y = -1*(opticflow->fast9_ret_corners[i].y-y_center);
-		}
-		//printf("%d\n",sizeof(object_to_track->corner_loc));
+		// Define roi_cg in the camera frame, with (0,0) at the center of the frame and y positive upwards
+		object_to_track->object_cg.x = opticflow->roi_center.x-x_center;
+    object_to_track->object_cg.y = -1*(opticflow->roi_center.y-y_center);
+
 		// Rotate to virtual camera frame
 		euler_angles = stateGetNedToBodyEulers_f();
 		float R[3][3] = {
@@ -194,55 +191,30 @@ void calc_frame_ibvs_control(struct opticflow_t *opticflow,struct Tracked_object
 				{-sin( euler_angles->phi)*cos( euler_angles->theta), sin( euler_angles->theta), cos( euler_angles->theta)*cos( euler_angles->phi)}
 		};
 
-		for(k=0;k<opticflow->nr_of_corners_detected;k++){
-			float beta = l1*l2*cos( euler_angles->phi)*cos( euler_angles->theta)-
-					object_to_track->corner_loc[k].x*l2*sin( euler_angles->theta) +
-					object_to_track->corner_loc[k].y*l1*sin( euler_angles->phi)*cos( euler_angles->theta);
-			// Fill LX
-			LX[0][0] = l2*(int)object_to_track->corner_loc[k].x;
-			LX[1][0] = l1*(int)object_to_track->corner_loc[k].y;
-			LX[2][0] = l1*l2;
 
-			multiply3x33x1(R,LX,res1);
-			multiply2x33x1(object_to_track->L_matrix,res1,res2);
-			pv[0][0] = res2[0][0]/beta;
-			pv[1][0] = res2[1][0]/beta;
-			object_to_track->corner_loc[k].xv = (uint32_t) pv[0][0];
-			object_to_track->corner_loc[k].yv = (uint32_t) pv[1][0];
-		}
+    float beta = l1*l2*cos( euler_angles->phi)*cos( euler_angles->theta)-
+        object_to_track->object_cg.x*l2*sin( euler_angles->theta) +
+        object_to_track->object_cg.y*l1*sin( euler_angles->phi)*cos( euler_angles->theta);
+    // Fill LX
+    LX[0][0] = l2*(int)object_to_track->object_cg.x;
+    LX[1][0] = l1*(int)object_to_track->object_cg.y;
+    LX[2][0] = l1*l2;
 
-		// Calculate features
-		// Average x,y
-		int x_sum = 0;
-		int y_sum = 0;
-		for(i=0;i<opticflow->nr_of_corners_detected;i++){
-			x_sum += (int)object_to_track->corner_loc[i].xv;
-			y_sum += (int)object_to_track->corner_loc[i].yv;
-		}
-		int x_g = x_sum/opticflow->nr_of_corners_detected;
-		int y_g = y_sum/opticflow->nr_of_corners_detected;
-		// Surface area and corners
-		float mu_20 = 0;
-		float mu_02 = 0;
-		float mu_11 = 0;
-		for(i=0;i<opticflow->nr_of_corners_detected;i++){
-			mu_20 += (object_to_track->corner_loc[i].xv-x_g)*(object_to_track->corner_loc[i].xv-x_g);
-			mu_02 += (object_to_track->corner_loc[i].yv-y_g)*(object_to_track->corner_loc[i].yv-y_g);
-			mu_11 += (object_to_track->corner_loc[i].xv-x_g)*(object_to_track->corner_loc[i].yv-y_g);
-		}
-		free(object_to_track->corner_loc);
-		float s3 = sqrtf((mu_2002star)/(mu_20 + mu_02));
-		float s4 = 0.5 * atanf(2*mu_11/((l2/l1)*mu_20-(l1/l2)*mu_02));
+    multiply3x33x1(R,LX,res1);
+    multiply2x33x1(object_to_track->L_matrix,res1,res2);
+    pv[0][0] = res2[0][0]/beta;
+    pv[1][0] = res2[1][0]/beta;
+    object_to_track->object_cg.xv = (uint32_t) pv[0][0];
+    object_to_track->object_cg.yv = (uint32_t) pv[1][0];
 
 		// Getting velocity commands
-		v_xstar = x_gain * (x_g-x_gstar);
-		v_ystar = y_gain * (y_g-y_gstar);
-		v_zstar = z_gain * (s3-s3_star);
+		v_xstar = x_gain * (object_to_track->object_cg.xv-x_gstar);
+		v_ystar = y_gain * (object_to_track->object_cg.yv-y_gstar);
+		/*v_zstar = z_gain * (s3-s3_star);
 		r_star = yaw_gain * (s4-alpha_star);
-		printf("Commands to be given: (vx,vy) = (%f,%f)\n",v_xstar,v_ystar);
+		printf("Commands to be given: (vx,vy) = (%f,%f)\n",v_xstar,v_ystar);*/
 		// Sending velocity commands
 		if(object_to_track->ibvs_go){
-      printf("In if statement set guidance\n");
       guidance_h_mode_changed(10);
       // guidance_v_mode_changed(8);
 			// Check what are x and y in the body frame by sending only one of the commands

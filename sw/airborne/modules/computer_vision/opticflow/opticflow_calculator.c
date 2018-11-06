@@ -729,11 +729,25 @@ bool calc_fast9_lukas_kanade(struct opticflow_t *opticflow, struct image_t *img,
       opticflow->offset_roi_cg.x_full = (int32_t)opticflow->roi_center.x_full - (int32_t)opticflow->cg_corners.x_full;
       opticflow->offset_roi_cg.y_full = (int32_t)opticflow->roi_center.y_full - (int32_t)opticflow->cg_corners.y_full;
       opticflow->offset_defined = true;
+      // Find average distance to the cg
+      struct point_tf av_dist; av_dist.x_full = 0; av_dist.y_full = 0;
+      for (uint16_t i = 0; i < result->tracked_cnt; i++) {
+        av_dist.x_full += abs((int32_t)opticflow->fast9_ret_corners[i].x_full-(int32_t)opticflow->cg_corners.x_full);
+        av_dist.y_full += abs((int32_t)opticflow->fast9_ret_corners[i].y_full-(int32_t)opticflow->cg_corners.y_full);
+      }
+      opticflow->av_dist.x_full = av_dist.x_full/result->tracked_cnt;
+      opticflow->av_dist.y_full = av_dist.y_full/result->tracked_cnt;
+      printf("Initialized dbar = (%f,%f)\n",opticflow->av_dist.x_full,opticflow->av_dist.y_full);
+      // Define initial w/d and h/d
+      opticflow->width_dist_ratio = opticflow->roiw*(float)(opticflow->subpixel_factor)/opticflow->av_dist.x_full;
+      opticflow->height_dist_ratio = opticflow->roih*(float)(opticflow->subpixel_factor)/opticflow->av_dist.y_full;
+      printf("Initialized (w/d,h/d) = (%f,%f)\n",opticflow->width_dist_ratio,opticflow->height_dist_ratio);
+      printf("Initialized based on ROI of size %f x %f\n",opticflow->roiw,opticflow->roih);
     } else{
       // 2. Did we lose corners?
       if (opticflow->previous_tracked_cnt > result->tracked_cnt){
         // Nr of lost corners
-        uint8_t cnt_diff = opticflow->previous_tracked_cnt > result->tracked_cnt;
+        uint8_t cnt_diff = opticflow->previous_tracked_cnt - result->tracked_cnt;
         // Array of removed corner index
         uint16_t rem_ind[cnt_diff];
         for (uint16_t j = 0; j < cnt_diff; j++) {
@@ -763,6 +777,23 @@ bool calc_fast9_lukas_kanade(struct opticflow_t *opticflow, struct image_t *img,
         }
         // Print the removed corners
 /*        printf("%d Corners lost\n",cnt_diff);*/
+        // Calculate new width correction factor
+        struct point_tf lost_corn_dist_sum;
+        lost_corn_dist_sum.x = 0; lost_corn_dist_sum.y = 0;
+        for (uint16_t j = 0; j < cnt_diff; j++) {
+          lost_corn_dist_sum.x += abs((int32_t)opticflow->previous_fast9_ret_corners[rem_ind[j]].x_full-(int32_t)opticflow->cg_corners.x_full);
+          lost_corn_dist_sum.y += abs((int32_t)opticflow->previous_fast9_ret_corners[rem_ind[j]].y_full-(int32_t)opticflow->cg_corners.y_full);
+        }
+/*        printf("Absolute distance lost, due to %d corners lost = (%d,%d)\n",cnt_diff,lost_corn_dist_sum.x,lost_corn_dist_sum.y);*/
+        float corr_lost_x = (opticflow->av_dist.x_full*result->tracked_cnt)/
+            (opticflow->av_dist.x_full*opticflow->previous_tracked_cnt-lost_corn_dist_sum.x);
+        float corr_lost_y = (opticflow->av_dist.y_full*result->tracked_cnt)/
+                    (opticflow->av_dist.y_full*opticflow->previous_tracked_cnt-lost_corn_dist_sum.y);
+        // Update w/d
+        opticflow->width_dist_ratio *= corr_lost_x;
+        opticflow->height_dist_ratio *= corr_lost_y;
+/*        printf("New (w/d,h/d) = (%f,%f), due to corr = (%f,%f)\n",opticflow->width_dist_ratio,opticflow->height_dist_ratio,
+            corr_lost_x,corr_lost_y);*/
       }
       // Find average position of corners
       struct point_tf av_corn_pos;
@@ -778,6 +809,19 @@ bool calc_fast9_lukas_kanade(struct opticflow_t *opticflow, struct image_t *img,
       opticflow->roi_center.y_full = (uint16_t)((int32_t)opticflow->cg_corners.y_full+opticflow->offset_roi_cg.y_full);
       opticflow->roi_center.x = opticflow->roi_center.x_full/opticflow->subpixel_factor;
       opticflow->roi_center.y = opticflow->roi_center.y_full/opticflow->subpixel_factor;
+      // Find average distance to corner cg
+      struct point_tf av_dist; av_dist.x_full = 0; av_dist.y_full = 0;
+      for (uint16_t i = 0; i < result->tracked_cnt; i++) {
+        av_dist.x_full += (uint32_t)abs((int32_t)opticflow->fast9_ret_corners[i].x_full-(int32_t)opticflow->cg_corners.x_full);
+        av_dist.y_full += (uint32_t)abs((int32_t)opticflow->fast9_ret_corners[i].y_full-(int32_t)opticflow->cg_corners.y_full);
+      }
+      opticflow->av_dist.x_full = (float)av_dist.x_full/(float)result->tracked_cnt;
+      opticflow->av_dist.y_full = (float)av_dist.y_full/(float)result->tracked_cnt;
+/*      printf("Average distance in full: %f,%f\n",opticflow->av_dist.x_full,opticflow->av_dist.y_full);*/
+      // Update ROI width based on new average distance
+      opticflow->roiw = opticflow->width_dist_ratio*opticflow->av_dist.x_full/opticflow->subpixel_factor;
+      opticflow->roih = opticflow->height_dist_ratio*opticflow->av_dist.y_full/opticflow->subpixel_factor;
+      /*printf("New roi dimensions = (%f,%f)\n",opticflow->roiw,opticflow->roih);*/
       // Update ROI size based on the difference in movement between the left and right and top and bottom due to divergence
       // Divergence is defined opposite to the usual
       // roi[0].dx - roi[2].dx = (roi[0].x-roi[2].x)*div_size/subpixel = roiw*div_size/subpixel, this should logically be the increase in size
@@ -785,10 +829,10 @@ bool calc_fast9_lukas_kanade(struct opticflow_t *opticflow, struct image_t *img,
       opticflow->roih += opticflow->roih*result->div_size/opticflow->subpixel_factor;*/
       /*printf("Change in width due to divergence %f\n",opticflow->roiw*result->div_size/opticflow->subpixel_factor);*/
       // Update all roi features
-      opticflow->roi[0] = opticflow->roi_center.x - (uint16_t)opticflow->roiw/2;
-      opticflow->roi[2] = opticflow->roi_center.x + (uint16_t)opticflow->roiw/2;
-      opticflow->roi[1] = opticflow->roi_center.y - (uint16_t)opticflow->roih/2;
-      opticflow->roi[3] = opticflow->roi_center.y + (uint16_t)opticflow->roih/2;
+      opticflow->roi[0] = (opticflow->roi_center.x_full - (uint16_t)opticflow->roiw*opticflow->subpixel_factor/2)/opticflow->subpixel_factor;
+      opticflow->roi[2] = (opticflow->roi_center.x_full + (uint16_t)opticflow->roiw*opticflow->subpixel_factor/2)/opticflow->subpixel_factor;
+      opticflow->roi[1] = (opticflow->roi_center.y_full - (uint16_t)opticflow->roih*opticflow->subpixel_factor/2)/opticflow->subpixel_factor;
+      opticflow->roi[3] = (opticflow->roi_center.y_full + (uint16_t)opticflow->roih*opticflow->subpixel_factor/2)/opticflow->subpixel_factor;
 /*      printf("current ROI: (%d,%d,%d,%d)\n",opticflow->roi[0],opticflow->roi[1],opticflow->roi[2],opticflow->roi[3]);*/
       // Prepare for next iteration
       opticflow->previous_tracked_cnt = result->tracked_cnt;
@@ -1233,8 +1277,8 @@ void init_object_tracking(struct opticflow_t *opticflow){
   opticflow->offset_defined = false;
   opticflow->roi_center.x = 130;
   opticflow->roi_center.y = 140;
-  opticflow->roih = 80;
-  opticflow->roiw = 60;
+  opticflow->roih = 80.0;
+  opticflow->roiw = 60.0;
 
   opticflow->roi_center.x_full = opticflow->roi_center.x*opticflow->subpixel_factor;
   opticflow->roi_center.y_full = opticflow->roi_center.y*opticflow->subpixel_factor;
