@@ -116,6 +116,11 @@ struct opticflow_t {
   float width_dist_ratio;
   float height_dist_ratio;
   struct point_tfloat av_dist;
+  uint8_t n_new_corners;
+  uint16_t nr_of_new_corners_to_detect;
+  struct point_tf *new_fast9_ret_corners;
+  uint16_t new_corners_found;
+  int16_t min_dist_from_edge;
 
 };
 

@@ -31,8 +31,18 @@ struct Tracked_object{
 	struct Coor_camera *corner_loc;
 	float L_matrix[2][3];
 	bool ibvs_go;
+	bool ibvs_go2;
 	bool set_guidance;
 	struct Coor_camera object_cg;
+	// Previous values
+  float roiw_prev;
+  float roih_prev;
+  float droiwdt;
+  float droihdt;
+  float prev_vision_time;
+  float vision_time;
+  uint32_t ndt_vz;
+  float v_zarr[];
 };
 
 // Needed for settings
