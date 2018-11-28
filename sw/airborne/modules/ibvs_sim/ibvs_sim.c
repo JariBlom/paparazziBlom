@@ -96,7 +96,7 @@
 
 
 #ifndef OFL_COV_SETPOINT
-#define OFL_COV_SETPOINT 0.0
+#define OFL_COV_SETPOINT -0.0015
 #endif
 
 #ifndef OFL_COV_LANDING_LIMIT
@@ -117,7 +117,7 @@
 #endif
 
 #ifndef OFL_P_LAND_THRESHOLD
-#define OFL_P_LAND_THRESHOLD 0.000001
+#define OFL_P_LAND_THRESHOLD 0.0000051
 #endif
 
 #ifndef OFL_ELC_OSCILLATE
@@ -139,7 +139,7 @@ PRINT_CONFIG_VAR(OFL_OPTICAL_FLOW_ID)
 // Constants
 // minimum value of the P-gain for divergence control
 // adaptive control / exponential gain control will not be able to go lower
-#define MINIMUM_GAIN 0.000001
+#define MINIMUM_GAIN 0.000005
 
 // Define variables and functions only used in this file
 // Goal values for features
@@ -191,7 +191,7 @@ float divergence_setpoint;
 // for the exponentially decreasing gain strategy:
 int32_t elc_phase;
 uint32_t elc_time_start;
-float elc_p_gain_start, elc_i_gain_start,  elc_d_gain_start;
+float elc_p_gain_start, elc_i_gain_start,  elc_d_gain_start, elc_p_gain_off_min;
 int32_t count_covdiv;
 float lp_cov_div;
 bool bool_cov_array_filled;
@@ -459,6 +459,8 @@ void calc_frame_ibvs_control(struct opticflow_t *opticflow,struct Tracked_object
 	          elc_p_gain_start = of_landing_ctrl.reduction_factor_elc * pstate;
 	          elc_i_gain_start = of_landing_ctrl.reduction_factor_elc * istate;
 	          elc_d_gain_start = of_landing_ctrl.reduction_factor_elc * dstate;
+	          // Offset of starting gain with minimum gain
+	          elc_p_gain_off_min = elc_p_gain_start - MINIMUM_GAIN;
 	          count_covdiv = 0;
 	          of_landing_ctrl.sum_err = 0.0f;
 	        }
@@ -492,12 +494,11 @@ void calc_frame_ibvs_control(struct opticflow_t *opticflow,struct Tracked_object
 	        // this should not happen, but just to be sure to prevent too high gain values:
 	        if (t_interval < 0) { t_interval = 0.0f; }
 
-	        /*// determine the P-gain, exponentially decaying:
-	        float gain_scaling = expf(of_landing_ctrl.divergence_setpoint * 0.7 * t_interval);
-	        pstate = elc_p_gain_start * gain_scaling;
-	        istate = elc_i_gain_start * gain_scaling;
-	        dstate = elc_d_gain_start * gain_scaling;
-	        pused = pstate;*/
+	        // determine the P-gain, exponentially decaying to a minimum gain:
+	        pstate = MINIMUM_GAIN + elc_p_gain_off_min*expf(of_landing_ctrl.divergence_setpoint * 0.1 * t_interval);
+	        /*istate = elc_i_gain_start * gain_scaling;
+	        dstate = elc_d_gain_start * gain_scaling;*/
+	        pused = pstate;
 
 	        // 2 [1/s] ramp to setpoint
 	        /*if (fabsf(of_landing_ctrl.divergence_setpoint - divergence_setpoint) > 2.*dt){
@@ -609,7 +610,7 @@ void vertical_ctrl_module_init()
   of_landing_ctrl.sum_err = 0.0f;
   of_landing_ctrl.d_err = 0.0f;
   of_landing_ctrl.nominal_thrust = (float)guidance_v_nominal_throttle / (float)MAX_PPRZ; // copy this value from guidance
-  of_landing_ctrl.CONTROL_METHOD = 1;
+  of_landing_ctrl.CONTROL_METHOD = 2;
   of_landing_ctrl.COV_METHOD = OFL_COV_METHOD;
   of_landing_ctrl.delay_steps = 15;
   of_landing_ctrl.window_size = OFL_COV_WINDOW_SIZE;
