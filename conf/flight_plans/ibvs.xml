@@ -155,6 +155,7 @@
     </block>
     <block name="Landed">
       <call_once fun="NavKillThrottle()"/>
+      <set var="opticflow.in_flight" value="FALSE" />
       <attitude pitch="0" roll="0" throttle="0" until="FALSE" vmode="throttle"/>
     </block>
   </blocks>

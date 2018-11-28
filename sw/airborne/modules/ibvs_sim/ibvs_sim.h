@@ -37,8 +37,8 @@ struct Tracked_object{
 	// Previous values
   float roiw_prev;
   float roih_prev;
-  float droiwdt;
-  float droihdt;
+  float droiwdtw;
+  float droihdth;
   float prev_vision_time;
   float vision_time;
   uint32_t ndt_vz;

@@ -415,7 +415,9 @@ bool calc_fast9_lukas_kanade(struct opticflow_t *opticflow, struct image_t *img,
     else if(opticflow->object_tracking && result->corner_cnt < opticflow->max_track_corners / 2){
       result->corner_cnt = 0;
       opticflow->offset_defined = false;
+      printf("Now trying to find 25 new corners\n");
       manage_flow_features(opticflow, result, opticflow->roi);
+      printf("Managed!\n");
       for (uint16_t i = 0; i < result->corner_cnt; i++){
         opticflow->fast9_ret_corners[i].x_full = opticflow->fast9_ret_corners[i].x * opticflow->subpixel_factor;
         opticflow->fast9_ret_corners[i].y_full = opticflow->fast9_ret_corners[i].y * opticflow->subpixel_factor;
@@ -758,6 +760,9 @@ bool calc_fast9_lukas_kanade(struct opticflow_t *opticflow, struct image_t *img,
       opticflow->height_dist_ratio = opticflow->roih*(float)(opticflow->subpixel_factor)/opticflow->av_dist.y_full;
       opticflow->n_new_corners = 0;
     } else{
+      // Check if we were able to keep at least 15 of the old corners
+      // Three times in a row keeping less than 15 corners, means we can assume we're in the last phase of the landing
+
       // 2. Did we lose corners?
       if (opticflow->previous_tracked_cnt > result->tracked_cnt){
         // Nr of lost corners

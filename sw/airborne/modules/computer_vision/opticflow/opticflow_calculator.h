@@ -121,7 +121,10 @@ struct opticflow_t {
   struct point_tf *new_fast9_ret_corners;
   uint16_t new_corners_found;
   int16_t min_dist_from_edge;
-
+  // Required for control
+  bool in_flight;
+  bool landing;
+  float cov_div;
 };
 
 // Used for shape correction
