@@ -33,6 +33,7 @@
 #define OPTICFLOW_CALCULATOR_H
 
 #include "std.h"
+#include <stdio.h>
 #include "inter_thread_data.h"
 #include "lib/vision/image.h"
 #include "lib/v4l/v4l2.h"
@@ -125,6 +126,21 @@ struct opticflow_t {
   bool in_flight;
   bool landing;
   float cov_div;
+  bool object_tracking_reset;
+  float *t_new_window;
+  uint32_t n_reinits;
+  float t_0;
+  float t_1;
+  float t_2;
+  float t_3;
+  float t_landed;
+  float roih_init;
+  float roiw_init;
+  struct point_tf roi_center_init;
+  struct EnuCoor_f start_pos;
+  /** The file pointer */
+  FILE *ibvs_file_logger;
+
 };
 
 // Used for shape correction

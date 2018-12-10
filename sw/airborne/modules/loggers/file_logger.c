@@ -32,10 +32,13 @@
 #include "subsystems/imu.h"
 #include "firmwares/rotorcraft/stabilization.h"
 #include "state.h"
+#include "modules/ibvs_sim/ibvs_sim.h"
+#include "modules/computer_vision/opticflow/opticflow_calculator.h"
+#include "mcu_periph/sys_time.h"
 
 /** Set the default File logger path to the USB drive */
 #ifndef FILE_LOGGER_PATH
-#define FILE_LOGGER_PATH /data/video/usb
+#define FILE_LOGGER_PATH /data/ftp/internal_000
 #endif
 
 /** The file pointer */
@@ -70,6 +73,28 @@ void file_logger_start(void)
 void file_logger_stop(void)
 {
   if (file_logger != NULL) {
+    // Print the last values we require
+    fprintf(file_logger,"%s,%f,%f,%f,%f,%d,%f,%f,%d,%d,%d,%d,%f,%f,%f,%s",
+        "final row",
+        opticflow.t_0,
+        opticflow.t_1,
+        opticflow.t_2,
+        opticflow.t_3,
+        opticflow.n_reinits,
+        opticflow.roih_init,
+        opticflow.roiw_init,
+        opticflow.roi_center_init.x,
+        opticflow.roi_center_init.y,
+        opticflow.img_gray.w,
+        opticflow.img_gray.h,
+        opticflow.start_pos.x,
+        opticflow.start_pos.y,
+        opticflow.start_pos.z,
+        "t_new_window:"
+        );
+    for(uint32_t i = 0;i<opticflow.n_reinits;i++){
+      fprintf(file_logger,",%f",opticflow.t_new_window[i]);
+    }
     fclose(file_logger);
     file_logger = NULL;
   }
@@ -83,9 +108,19 @@ void file_logger_periodic(void)
   }
   static uint32_t counter;
   struct Int32Quat *quat = stateGetNedToBodyQuat_i();
+  struct EnuCoor_f *enu = stateGetPositionEnu_f();
+  struct EnuCoor_f *venu = stateGetSpeedEnu_f();
+  float t = get_sys_time_float();
 
-  fprintf(file_logger, "%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
+  fprintf(file_logger, "%d,%f,%f,%f,%f,%f,%f,%f,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
           counter,
+          t,
+          enu->x,
+          enu->y,
+          enu->z,
+          venu->x,
+          venu->y,
+          venu->z,
           imu.gyro_unscaled.p,
           imu.gyro_unscaled.q,
           imu.gyro_unscaled.r,

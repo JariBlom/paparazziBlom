@@ -45,6 +45,30 @@ struct Tracked_object{
   float v_zarr[];
 };
 
+/*
+struct ResultToWrite{
+  struct EnuCoor_f *enu;
+  struct EnuCoor_f *venu;
+  float *timestamp;
+  // Timestamps at which something special happens
+  float t_ibvs_go;
+  float t_1;
+  float t_2;
+  float t_3;
+  float t_landed;
+  float *t_new_window;
+  uint32_t n_reinits;
+  // Variables to deduce the goal coordinate from
+  struct EnuCoor_f *enu_start;
+  struct Coor_camera goal_pixel;
+  uint32_t img_width;
+  uint32_t img_height;
+  // Still need fov
+  // Object size
+  struct Coor_camera object_size;
+};
+*/
+
 // Needed for settings
 extern struct Tracked_object object_to_track;
 
