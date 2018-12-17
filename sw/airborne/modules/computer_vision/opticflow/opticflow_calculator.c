@@ -348,18 +348,14 @@ void opticflow_calc_init(struct opticflow_t *opticflow)
   opticflow->roi_center_init.x = 130;
   opticflow->roi_center_init.y = 120;
 
-  printf("Initializing file logger\n");
   // Initialize logger
   uint32_t file_counter = 0;
   char filename[512];
   char* ibvs_file_logger_path = "./data/Jari";
   opticflow->ibvs_file_logger = NULL;
-  printf("Here0\n");
   // Check for available files
   sprintf(filename, "%s/run%d.csv", ibvs_file_logger_path, (int32_t)file_counter);
-  printf("Here1\n");
   while ((opticflow->ibvs_file_logger = fopen(filename, "r"))) {
-    printf("Now in while \n");
     fclose(opticflow->ibvs_file_logger);
 
     file_counter++;
@@ -368,11 +364,9 @@ void opticflow_calc_init(struct opticflow_t *opticflow)
   printf("%s\n",filename);
   opticflow->ibvs_file_logger = fopen(filename,"w");
   if(opticflow->ibvs_file_logger != NULL){
-    printf("Opened file \n");
     fprintf(opticflow->ibvs_file_logger,"t\tx\ty\tz\tvx\tvy\tvz\txstart\tystart\tzstart\troihinit\troiwinit\troixinit"
-      "\troiyinit\timgw\timgh\tfov\tgoaldiv\tt0\tt1\tt2\tt3\ttlanded\tnreinits\n");
+      "\troiyinit\timgw\timgh\tfov\tgoaldiv\tt0\tt1\tt2\tt3\ttlanded\tnreinits\tphistart\tthetastart\tpsistart\n");
   }
-  printf("Done initializing file logger\n");
 }
 /**
  * Run the optical flow with fast9 and lukaskanade on a new image frame
@@ -433,33 +427,17 @@ bool calc_fast9_lukas_kanade(struct opticflow_t *opticflow, struct image_t *img,
   // if feature_management is selected and tracked corners drop below a threshold, redetect
   if (opticflow->feature_management) {
     result->corner_cnt = result->tracked_cnt;
-
     // check if new region of interest defined
     if (opticflow->object_tracking && opticflow->object_tracking_set){
-      printf("Initializing object tracking \n");
+      printf("Reset \n");
       init_object_tracking(opticflow);
-      printf("Through init_object_tracking \n");
       result->corner_cnt = 0;
       manage_flow_features(opticflow, result, opticflow->roi);
-      printf("Through manage flow features\n");
       for (uint16_t i = 0; i < result->corner_cnt; i++){
         opticflow->fast9_ret_corners[i].x_full = opticflow->fast9_ret_corners[i].x * opticflow->subpixel_factor;
         opticflow->fast9_ret_corners[i].y_full = opticflow->fast9_ret_corners[i].y * opticflow->subpixel_factor;
       }
-      printf("Done initializing \n");
     }
-    /*// When nr. of corners is too low, but using ROI
-    else if(opticflow->object_tracking && result->corner_cnt < opticflow->max_track_corners / 2){
-      result->corner_cnt = 0;
-      opticflow->offset_defined = false;
-      printf("Now trying to find 25 new corners\n");
-      manage_flow_features(opticflow, result, opticflow->roi);
-      printf("Managed!\n");
-      for (uint16_t i = 0; i < result->corner_cnt; i++){
-        opticflow->fast9_ret_corners[i].x_full = opticflow->fast9_ret_corners[i].x * opticflow->subpixel_factor;
-        opticflow->fast9_ret_corners[i].y_full = opticflow->fast9_ret_corners[i].y * opticflow->subpixel_factor;
-      }
-    }*/
     // Look for new features in the ROI
     else if(opticflow->object_tracking && result->corner_cnt < opticflow->max_track_corners-2){
       // define number of corners to look for
@@ -497,7 +475,6 @@ bool calc_fast9_lukas_kanade(struct opticflow_t *opticflow, struct image_t *img,
                opticflow->actfast_long_step, opticflow->actfast_short_step, opticflow->actfast_min_gradient,
                opticflow->actfast_gradient_method);
     }
-
     // Adaptive threshold
     if (opticflow->fast9_adaptive) {
 
@@ -529,7 +506,6 @@ bool calc_fast9_lukas_kanade(struct opticflow_t *opticflow, struct image_t *img,
   image_show_points_color(img, opticflow->fast9_ret_corners, result->corner_cnt, white);
 #endif
 
-  /*printf("corner: %d\n", result->corner_cnt);*/
   // Check if we found some corners to track
   if (result->corner_cnt < 1) {
     // Clear the result otherwise the previous values will be returned for this frame too
@@ -570,10 +546,6 @@ bool calc_fast9_lukas_kanade(struct opticflow_t *opticflow, struct image_t *img,
       opticflow->fast9_ret_corners[i].y = (uint32_t)roundf((float)opticflow->fast9_ret_corners[i].y_full/opticflow->subpixel_factor);
       opticflow->fast9_ret_corners[i].count = vectors[i].pos.count;
 
-      /*printf("Corner location %d: (%d, %d), (%d, %d), (%d, %d) \n",i, vectors[i].pos.x, vectors[i].pos.y,
-          opticflow->fast9_ret_corners[i].x, opticflow->fast9_ret_corners[i].y,
-          opticflow->fast9_ret_corners[i].x_full, opticflow->fast9_ret_corners[i].y_full);*/
-
       uint8_t window = 2;
       if (opticflow->fast9_ret_corners[i].x <= window || opticflow->fast9_ret_corners[i].y <= window ||
           opticflow->fast9_ret_corners[i].x + window > img->w || opticflow->fast9_ret_corners[i].y + window > img->h){
@@ -595,7 +567,6 @@ bool calc_fast9_lukas_kanade(struct opticflow_t *opticflow, struct image_t *img,
 
       if (local_corners_found == 0)
       {
-        /*printf("Removing a corner, because it's not detected\n");*/
         // Reduce result->tracked_cnt
         result->tracked_cnt -= 1;
         // Remove entry from vectors
@@ -611,7 +582,6 @@ bool calc_fast9_lukas_kanade(struct opticflow_t *opticflow, struct image_t *img,
         opticflow->fast9_ret_corners[i].y_full = opticflow->fast9_ret_corners[result->tracked_cnt].y_full;
         // Reduce i to make sure this corner is still checked
         i -= 1;
-/*        printf("Corner removed\n");*/
 
       } else {
         float min_dist = window * window;
@@ -655,11 +625,7 @@ bool calc_fast9_lukas_kanade(struct opticflow_t *opticflow, struct image_t *img,
   // Estimate size divergence:
   if (SIZE_DIV) {
     result->div_size = get_size_divergence(vectors, result->tracked_cnt, n_samples);// * result->fps;
-    /*printf("Divergence: %f\n",result->div_size);*/
-    // Find velocity for reference
-    /*static struct EnuCoor_f *vel;
-    vel = stateGetSpeedEnu_f();*/
-    /*printf("Velocity upwards: %d\n",vel->z);*/
+
   } else {
     result->div_size = 0.0f;
   }
@@ -683,28 +649,6 @@ bool calc_fast9_lukas_kanade(struct opticflow_t *opticflow, struct image_t *img,
     result->divergence = 0.0f;
     result->surface_roughness = 0.0f;
   }
-
-  //printf("%f %f\n", (float)result->divergence/opticflow->subpixel_factor, (float)result->div_size/opticflow->subpixel_factor);
-
-  // Get the median flow
-/*  qsort(vectors, result->tracked_cnt, sizeof(struct flow_t), cmp_flow);
-  if (result->tracked_cnt == 0) {
-    // We got no flow
-    result->flow_x = 0;
-    result->flow_y = 0;
-
-    free(vectors);
-    image_switch(&opticflow->img_gray, &opticflow->prev_img_gray);
-    return false;
-  } else if (result->tracked_cnt % 2) {
-    // Take the median point
-    result->flow_x = vectors[result->tracked_cnt / 2].flow_x;
-    result->flow_y = vectors[result->tracked_cnt / 2].flow_y;
-  } else {
-    // Take the average of the 2 median points
-    result->flow_x = (vectors[result->tracked_cnt / 2 - 1].flow_x + vectors[result->tracked_cnt / 2].flow_x) / 2.f;
-    result->flow_y = (vectors[result->tracked_cnt / 2 - 1].flow_y + vectors[result->tracked_cnt / 2].flow_y) / 2.f;
-  }*/
 
   // compute flow as mean of vectors
   int32_t flow_sum_x = 0, flow_sum_y = 0;
@@ -760,7 +704,6 @@ bool calc_fast9_lukas_kanade(struct opticflow_t *opticflow, struct image_t *img,
     // Before we move ROI we should do two checks
     // 1. Did we initialize offset_roi_cg already?
     if (!opticflow->offset_defined){
-/*      printf("Defining ROI\n");*/
       // Keep track of previous corners for future reference
       opticflow->previous_tracked_cnt = result->tracked_cnt;
       for (uint16_t i = 0; i < result->tracked_cnt; i++) {
@@ -803,7 +746,6 @@ bool calc_fast9_lukas_kanade(struct opticflow_t *opticflow, struct image_t *img,
       if (opticflow->previous_tracked_cnt > result->tracked_cnt){
         // Nr of lost corners
         uint8_t cnt_diff = opticflow->previous_tracked_cnt - result->tracked_cnt;
-        printf("Lost %d corners\n",cnt_diff);
         // Array of removed corner index
         uint16_t rem_ind[cnt_diff];
         for (uint16_t j = 0; j < cnt_diff; j++) {
@@ -831,39 +773,26 @@ bool calc_fast9_lukas_kanade(struct opticflow_t *opticflow, struct image_t *img,
           lost_corn_dist_sum.x_full += abs((int32_t)opticflow->previous_fast9_ret_corners[rem_ind[j]].x_full-(int32_t)opticflow->cg_corners.x_full);
           lost_corn_dist_sum.y_full += abs((int32_t)opticflow->previous_fast9_ret_corners[rem_ind[j]].y_full-(int32_t)opticflow->cg_corners.y_full);
         }
-        printf("Distance lost = (%d,%d) \n",lost_corn_dist_sum.x_full,lost_corn_dist_sum.y_full);
         // Find lost coordinates due to lost corner
         struct point_tf lost_corn_sum;
         lost_corn_sum.x_full = 0; lost_corn_sum.y_full = 0;
         for (uint16_t j = 0; j < cnt_diff; j++) {
-          printf("Lost corner position = (%d,%d) \n",opticflow->previous_fast9_ret_corners[rem_ind[j]].x_full,opticflow->previous_fast9_ret_corners[rem_ind[j]].y_full);
           lost_corn_sum.x_full += opticflow->previous_fast9_ret_corners[rem_ind[j]].x_full;
           lost_corn_sum.y_full += opticflow->previous_fast9_ret_corners[rem_ind[j]].y_full;
         }
-        printf("Coordinates sum lost = (%d,%d) \n",lost_corn_sum.x_full,lost_corn_sum.y_full);
         // Calculate w/d correction
         float w_corr_lost_x = (opticflow->av_dist.x_full*(float)result->tracked_cnt)/
             (opticflow->av_dist.x_full*(float)opticflow->previous_tracked_cnt-(float)lost_corn_dist_sum.x_full);
         float h_corr_lost_y = (opticflow->av_dist.y_full*(float)result->tracked_cnt)/
             (opticflow->av_dist.y_full*(float)opticflow->previous_tracked_cnt-(float)lost_corn_dist_sum.y_full);
-        printf("Width height correction = (%f,%f) \n",w_corr_lost_x,h_corr_lost_y);
-        printf("w_corr_lost_x = (opticflow->av_dist.x_full*(float)result->tracked_cnt)/"
-            "(opticflow->av_dist.x_full*(float)opticflow->previous_tracked_cnt-(float)lost_corn_dist_sum.x_full) \n = "
-            "%f * %f/(%f*%f-%f) = %f \n",opticflow->av_dist.x_full,(float)result->tracked_cnt,opticflow->av_dist.x_full,
-            (float)opticflow->previous_tracked_cnt,(float)lost_corn_dist_sum.x_full,w_corr_lost_x);
         // Update w/d
         opticflow->width_dist_ratio *= w_corr_lost_x;
         opticflow->height_dist_ratio *= h_corr_lost_y;
-        printf("New (width_dist,height_dist_ratio) = (%f,%f)\n",opticflow->width_dist_ratio,opticflow->height_dist_ratio);
         // Calculate roi_cg correction
         struct point_tf_signed off_cor_lost;
         float old_new_corr_ratio = (float)opticflow->previous_tracked_cnt/(float)result->tracked_cnt -1.0;
         off_cor_lost.x_full = (int32_t)roundf((old_new_corr_ratio*(float)opticflow->cg_corners.x_full)-((float)lost_corn_sum.x_full/(float)result->tracked_cnt));
         off_cor_lost.y_full = (int32_t)roundf((old_new_corr_ratio*(float)opticflow->cg_corners.y_full)-((float)lost_corn_sum.y_full/(float)result->tracked_cnt));
-        printf("CG correction = (%d,%d) \n",off_cor_lost.x_full,off_cor_lost.y_full);
-        printf("off_cor_lost.x_full = ((old_new_corr_ratio*(float)opticflow->cg_corners.x_full)-"
-            "((float)lost_corn_sum.x_full/(float)result->tracked_cnt)) \n = %f * %f - %f/%f = %d \n",old_new_corr_ratio,(float)opticflow->cg_corners.x_full,
-                (float)lost_corn_sum.x_full,(float)result->tracked_cnt,off_cor_lost.x_full);
         // Update roi cg offset
         opticflow->offset_roi_cg.x_full -= off_cor_lost.x_full;
         opticflow->offset_roi_cg.y_full -= off_cor_lost.y_full;
@@ -909,10 +838,8 @@ bool calc_fast9_lukas_kanade(struct opticflow_t *opticflow, struct image_t *img,
         av_corn_pos.x_full += opticflow->fast9_ret_corners[i].x_full;
         av_corn_pos.y_full += opticflow->fast9_ret_corners[i].y_full;
       }
-      printf("Old cg corners = (%d,%d)\n",opticflow->cg_corners.x_full,opticflow->cg_corners.y_full);
       opticflow->cg_corners.x_full = av_corn_pos.x_full/result->tracked_cnt;
       opticflow->cg_corners.y_full = av_corn_pos.y_full/result->tracked_cnt;
-      printf("New cg corners = (%d,%d)\n",opticflow->cg_corners.x_full,opticflow->cg_corners.y_full);
       // Propagate ROI based on average position of corners
       opticflow->roi_center.x_full = (uint16_t)((int32_t)opticflow->cg_corners.x_full+opticflow->offset_roi_cg.x_full);
       opticflow->roi_center.y_full = (uint16_t)((int32_t)opticflow->cg_corners.y_full+opticflow->offset_roi_cg.y_full);
@@ -943,8 +870,6 @@ bool calc_fast9_lukas_kanade(struct opticflow_t *opticflow, struct image_t *img,
           (int16_t)(opticflow->roih*opticflow->subpixel_factor/2))/(int16_t)opticflow->subpixel_factor);
       opticflow->roi[3] = (uint16_t)MIN((int16_t)opticflow->img_gray.h-opticflow->min_dist_from_edge,((int16_t)opticflow->roi_center.y_full +
           (int16_t)(opticflow->roih*opticflow->subpixel_factor/2))/(int16_t)opticflow->subpixel_factor);
-      printf("current ROI: (%d,%d,%d,%d)\n ",opticflow->roi[0],opticflow->roi[1],opticflow->roi[2],opticflow->roi[3]);
-      printf("Width, height = %f, %f cg location = %d, %d\n \n",opticflow->roiw,opticflow->roih,opticflow->roi_center.x,opticflow->roi_center.y);
       // Prepare for next iteration
       opticflow->previous_tracked_cnt = result->tracked_cnt;
       for (uint16_t i = 0; i < result->tracked_cnt; i++) {
@@ -1022,16 +947,12 @@ static void manage_flow_features(struct opticflow_t *opticflow, struct opticflow
 
   // no need for "per region" re-detection when there are no previous corners
   if ((opticflow->object_tracking) && ((!opticflow->fast9_region_detect) || (result->corner_cnt == 0))) {
-    /*printf("No previous corners\n");
-    printf("ROI to reinit: (%d,%d,%d,%d\n)",roi[0],roi[1],roi[2],roi[3]);
-    printf("ROI from opticflow: (%d,%d,%d,%d)\n",opticflow->roi[0],opticflow->roi[1],opticflow->roi[2],opticflow->roi[3]);*/
     fast9_detect(&opticflow->prev_img_gray, opticflow->fast9_threshold, opticflow->fast9_min_distance,
                 opticflow->fast9_padding, opticflow->fast9_padding, &result->corner_cnt,
                 &opticflow->fast9_rsize,
                 &opticflow->fast9_ret_corners,
                 roi);
   } else if ((!opticflow->fast9_region_detect) || (result->corner_cnt == 0)) {
-    /*printf("No previous corners\n");*/
     fast9_detect(&opticflow->prev_img_gray, opticflow->fast9_threshold, opticflow->fast9_min_distance,
                  opticflow->fast9_padding, opticflow->fast9_padding, &result->corner_cnt,
                  &opticflow->fast9_rsize,
@@ -1386,7 +1307,6 @@ void check_for_features(struct opticflow_t *opticflow, struct opticflow_result_t
     // if the corner has been replaced, the new corner in position c1 has to be checked again:
     if (!exists) { c1++; }
   }
-  printf("After first check, corner_cnt = %d\n ",result->corner_cnt);
   // Look for new corners
   // Define area to look in: should be in roi, but also somewhat centered in the image, since we don't
   // want to lose it again right away
@@ -1397,13 +1317,11 @@ void check_for_features(struct opticflow_t *opticflow, struct opticflow_result_t
   new_corner_roi[2] = (uint16_t)MIN((int16_t)opticflow->img_gray.w-opticflow->min_dist_from_edge,(int16_t)opticflow->roi[2]);
   new_corner_roi[1] = (uint16_t)MAX(opticflow->min_dist_from_edge,(int16_t)opticflow->roi[1]);
   new_corner_roi[3] = (uint16_t)MIN((int16_t)opticflow->img_gray.h-opticflow->min_dist_from_edge,(int16_t)opticflow->roi[3]);
-  printf("ROI to look in: [%d,%d,%d,%d]\n",new_corner_roi[0],new_corner_roi[1],new_corner_roi[2],new_corner_roi[3]);
   fast9_detect(&opticflow->img_gray, opticflow->fast9_threshold,opticflow->fast9_min_distance,
        opticflow->fast9_padding, opticflow->fast9_padding, &opticflow->new_corners_found,
        &opticflow->nr_of_new_corners_to_detect,
        &opticflow->new_fast9_ret_corners,
        new_corner_roi);
-  printf("opticflow->new_corners_found = %d \n", opticflow->new_corners_found);
   // Check which new corners are far away enough from the other corners to be selected
   uint8_t non_double_corners = 0;
   uint8_t index = 0;
@@ -1422,6 +1340,8 @@ void check_for_features(struct opticflow_t *opticflow, struct opticflow_result_t
     }
   }
   uint8_t index_array[opticflow->n_new_corners];
+  // Check if while loop has to be broken, due to a lack of corners
+  opticflow->insufficient_corners = false;
   while (non_double_corners < opticflow->n_new_corners){
     // Select element in new_corners
     bool exists = false;
@@ -1444,11 +1364,22 @@ void check_for_features(struct opticflow_t *opticflow, struct opticflow_result_t
     }
     index++;
     // If not enough non duplicate corners can be found
-    if (index >= opticflow->nr_of_new_corners_to_detect){
-      printf("Not enough non-duplicate corners could be found\n");
+    /*if (index >= opticflow->nr_of_new_corners_to_detect){*/
+    if (index >= opticflow->new_corners_found){
       opticflow->n_new_corners = non_double_corners;
+      printf("Trying the break\n");
+      opticflow->insufficient_corners = true;
       break;
     }
+  }
+  if(opticflow->insufficient_corners){
+    opticflow->broken_in_row++;
+    if(opticflow->broken_in_row>1){
+      printf("Final landing forced, due to lack of corners\n");
+      opticflow->landing = true;
+    }
+  } else{
+    opticflow->broken_in_row = 0;
   }
   // Add them at the end of the corner array
   for (uint8_t i=0;i<opticflow->n_new_corners;i++){
@@ -1476,7 +1407,11 @@ void init_object_tracking(struct opticflow_t *opticflow){
     opticflow->roih = opticflow->roih_init;
     opticflow->roiw = opticflow->roiw_init;
     struct EnuCoor_f *enu = stateGetPositionEnu_f();
+    struct FloatEulers *eulers = stateGetNedToBodyEulers_f();
     opticflow->start_pos.x = enu->x;opticflow->start_pos.y = enu->y;opticflow->start_pos.z = enu->z;
+    opticflow->start_angles.phi = eulers->phi;
+    opticflow->start_angles.theta = eulers->theta;
+    opticflow->start_angles.psi = eulers->psi;
   }
   else{
     opticflow->t_new_window[opticflow->n_reinits] = get_sys_time_float();

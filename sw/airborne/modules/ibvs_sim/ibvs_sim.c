@@ -210,7 +210,8 @@ int32_t count_covdiv;
 float lp_cov_div;
 bool bool_cov_array_filled;
 bool setting_average_thrust;
-
+float p_x_ratio; // ratio between vertical and horizontal gain
+bool to_phase_2; // Indicating we're intializing the p_x_ratio
 
 static abi_event agl_ev; ///< The altitude ABI event
 static abi_event optical_flow_ev;
@@ -219,10 +220,9 @@ float divergence_history[OFL_COV_WINDOW_SIZE];
 float past_divergence_history[OFL_COV_WINDOW_SIZE];
 uint32_t ind_hist;
 uint8_t cov_array_filled;
-bool ibvs_go;
 float time_at_filled;
-// Variable to write all results to
-// struct ResultToWrite result_to_write;
+float p_x_ratio;
+bool set_x_gain; // Are we changing x_gain based on z_gain
 
 static void multiply3x33x1(float mat1[3][3],float mat2[3][1],float res[3][1]);
 static void multiply2x33x1(float mat1[2][3],float mat2[3][1],float res[2][1]);
@@ -230,7 +230,7 @@ static struct image_t *calc_ibvs_control(struct image_t *img);
 static void calc_frame_ibvs_control(struct opticflow_t *opticflow,struct Tracked_object *object_to_track);
 // Functions copied from optical_flow_landing.c
 static void vertical_ctrl_module_init(void);
-static float final_landing_procedure(void);
+static float final_landing_procedure(struct opticflow_t *opticflow);
 static float PID_divergence_control(float divergence_setpoint, float P, float I, float D, float dt,
     struct opticflow_t *opticflow, struct OpticalFlowLanding of_landing_ctrl);
 static void reset_all_vars(void);
@@ -246,7 +246,6 @@ static void vertical_ctrl_optical_flow_cb(uint8_t sender_id, uint32_t stamp, int
 
 void ibvs_sim_init()
 {
-	printf("Initializing ibvs_sim \n");
 	// Initialize the opticflow calculation
 	// There should also be a check if we got a result and if that result is usefull
     // ibvs_got_result = false;
@@ -332,14 +331,15 @@ void calc_frame_ibvs_control(struct opticflow_t *opticflow,struct Tracked_object
         vertical_ctrl_module_init();
         // Some settings
         opticflow->in_flight = true;
-        landing = false;
-        ibvs_go = false;
+        opticflow->landing = false;
         opticflow->cov_div = 0.;
         time_at_filled = get_sys_time_float()*10;
         bool_cov_array_filled = false;
         setting_average_thrust = false;
         // Initialize result_to_write
         uint32_t max_size = 1000;
+        to_phase_2 = false;
+        set_x_gain = false;
         /*result_to_write->enu = calloc(max_size, sizeof(struct EnuCoor_f));
         result_to_write->venu = calloc(max_size, sizeof(struct EnuCoor_f));
         result_to_write->timestamp = calloc(max_size, sizeof(float));
@@ -395,8 +395,12 @@ void calc_frame_ibvs_control(struct opticflow_t *opticflow,struct Tracked_object
     object_to_track->droiwdtw = (opticflow->roiw-object_to_track->roiw_prev)/(dto*opticflow->roiw);
     object_to_track->droihdth = (opticflow->roih-object_to_track->roih_prev)/(dto*opticflow->roih);
     // As an experiment also scale x and y_gain with object size: if this works introduce scaling factor as variable
-    x_gain /= ((opticflow->roiw/object_to_track->roiw_prev + opticflow->roih/object_to_track->roih_prev)/2);
-    y_gain = -1*x_gain;
+
+    if(elc_phase == 2 && set_x_gain){
+      x_gain = pstate/p_x_ratio;
+      y_gain = -1*x_gain;
+    }
+
     // Replace divergence with dwdt
     float new_divergence = ((object_to_track->droiwdtw+object_to_track->droihdth)*div_factor)/(2*dto);
     // deal with (unlikely) fast changes in divergence:
@@ -429,8 +433,6 @@ void calc_frame_ibvs_control(struct opticflow_t *opticflow,struct Tracked_object
 	    guidance_v_set_guided_th(of_landing_ctrl.nominal_thrust);
 	    struct EnuCoor_f *enu = stateGetPositionEnu_f();
       struct EnuCoor_f *venu = stateGetSpeedEnu_f();
-	    printf("Height = %f\n",enu->z);
-      printf("v_z = %f\n",venu->z);
 	  }
 	  else if(object_to_track->ibvs_go){
 	    if (of_landing_ctrl.CONTROL_METHOD == 2) {
@@ -449,7 +451,6 @@ void calc_frame_ibvs_control(struct opticflow_t *opticflow,struct Tracked_object
 	            bool_cov_array_filled = false;
 	          }
 	          if(get_sys_time_float() - time_at_filled > of_landing_ctrl.t_transition){
-	            printf("New gain = %f, because we're not oscillating\n",pstate);
 	            pstate += dto * INCREASE_GAIN_PER_SECOND;
               float gain_factor = pstate / pused;
               istate *= gain_factor;
@@ -459,29 +460,19 @@ void calc_frame_ibvs_control(struct opticflow_t *opticflow,struct Tracked_object
 	        }
 	        // use the divergence for control:
 	        thrust_set = PID_divergence_control(phase_0_set_point, pused, istate, dstate, dto,opticflow,of_landing_ctrl);
-	        // printf("of_landing_ctrl.nominal_thrust = %d\n",of_landing_ctrl.nominal_thrust);
-	        //thrust_set = -50;
-	        //thrust_set = 1000;
-	        if(object_to_track->ibvs_go){
-	          ibvs_go = true;
-            printf("elc_phase == 0, thrust_set = %f\n",thrust_set);
-	        }
+
 	        // low pass filter cov div and remove outliers:
 	        if (fabsf(lp_cov_div - opticflow->cov_div) < of_landing_ctrl.cov_limit) {
 	          lp_cov_div = of_landing_ctrl.lp_cov_div_factor * lp_cov_div + (1 - of_landing_ctrl.lp_cov_div_factor) * opticflow->cov_div;
 	        }
-	        printf("cov_div = %f \n",opticflow->cov_div);
 	        // Use cov_div instead of this added value
 	        lp_cov_div = opticflow->cov_div;
 	        // if oscillating, maintain a counter to see if it endures:
 	        if (lp_cov_div <= of_landing_ctrl.cov_set_point) {
 	          count_covdiv++;
-	          printf("Oscillating\n");
 	        } else {
 	          count_covdiv = 0;
 	          elc_time_start = get_sys_time_float();
-	          printf("Not oscillating, since lp_cov_div = %f > %f = of_landing_ctrl.cov_set_point \n",
-	              lp_cov_div,of_landing_ctrl.cov_set_point);
 	        }
 	        // if the drone has been oscillating long enough, start landing:
 	        if (!of_landing_ctrl.elc_oscillate ||
@@ -489,7 +480,7 @@ void calc_frame_ibvs_control(struct opticflow_t *opticflow,struct Tracked_object
 	          // next phase:
 	          elc_phase = 1;
 	          elc_time_start = get_sys_time_float();
-	          opticflow->t_1 = elc_time_start;
+	          opticflow->t_1 = get_sys_time_float();
 
 	          // we don't want to oscillate, so reduce the gain:
 	          elc_p_gain_start = of_landing_ctrl.reduction_factor_elc * pstate;
@@ -513,42 +504,34 @@ void calc_frame_ibvs_control(struct opticflow_t *opticflow,struct Tracked_object
 
 	        // use the divergence for control:
 	        thrust_set = PID_divergence_control(phase_0_set_point, pused, istate, dstate, dto,opticflow,of_landing_ctrl);
-	        printf("elc_phase == 1, thrust_set = %f\n",thrust_set);
-	        printf("Pgain = %f\n",pstate);
 
 	        // if we have been trying to hover stably again for 2 seconds and we move in the same way as the desired divergence, switch to landing:
 	        if (t_interval >= 2.0f && of_landing_ctrl.divergence * of_landing_ctrl.divergence_setpoint >= 0.0f) {
 	          // next phase:
 	          elc_phase = 2;
 	          elc_time_start = get_sys_time_float();
-	          opticflow->t_2 = elc_time_start;
+	          opticflow->t_2 = get_sys_time_float();
 	          count_covdiv = 0;
 	        }
+	        to_phase_2 = true;
 	      } else if (elc_phase == 2) {
-	        // land while exponentially decreasing the gain:
-	        float t_interval = get_sys_time_float() - elc_time_start;
+          if(to_phase_2){
+            p_x_ratio = pstate/x_gain;
+            set_x_gain = true;
+            to_phase_2 = false;
+          }
+          // land while exponentially decreasing the gain:
+          float t_interval = get_sys_time_float() - elc_time_start;
 
-	        // this should not happen, but just to be sure to prevent too high gain values:
-	        if (t_interval < 0) { t_interval = 0.0f; }
+          // this should not happen, but just to be sure to prevent too high gain values:
+          if (t_interval < 0) { t_interval = 0.0f; }
 
-	        // determine the P-gain, exponentially decaying to a minimum gain:
-	        pstate = MINIMUM_GAIN + elc_p_gain_off_min*expf(of_landing_ctrl.divergence_setpoint * 0.05 * t_interval);
-/*	        pstate = elc_p_gain_start*expf(of_landing_ctrl.divergence_setpoint * 0.01 * t_interval);*/
-	        /*istate = elc_i_gain_start * gain_scaling;
-	        dstate = elc_d_gain_start * gain_scaling;*/
-	        pused = pstate;
+          // determine the P-gain, exponentially decaying to a minimum gain:
+          pstate = MINIMUM_GAIN + elc_p_gain_off_min*expf(of_landing_ctrl.divergence_setpoint * 0.05 * t_interval);
 
-	        // 2 [1/s] ramp to setpoint
-	        /*if (fabsf(of_landing_ctrl.divergence_setpoint - divergence_setpoint) > 2.*dt){
-	          divergence_setpoint += 2*dt * of_landing_ctrl.divergence_setpoint / fabsf(of_landing_ctrl.divergence_setpoint);
-	        } else {
-	          divergence_setpoint = of_landing_ctrl.divergence_setpoint;
-	        }*/
-
+          pused = pstate;
 	        // use the divergence for control:
 	        thrust_set = PID_divergence_control(of_landing_ctrl.divergence_setpoint, pused, istate, dstate, dto,opticflow,of_landing_ctrl);
-	        printf("elc_phase == 2, thrust_set = %f\n",thrust_set);
-	        printf("Pgain = %f\n",pstate);
 
 	        // when to make the final landing:
 	        if (pstate <= of_landing_ctrl.p_land_threshold) {
@@ -556,9 +539,7 @@ void calc_frame_ibvs_control(struct opticflow_t *opticflow,struct Tracked_object
 	          opticflow->t_3 = get_sys_time_float();
 	        }
 	      } else {
-	        thrust_set = final_landing_procedure();
-	        printf("elc_phase == 3\n");
-	        printf("Pgain = %f\n",pstate);
+	        thrust_set = final_landing_procedure(opticflow);
 	      }
 	      /*if(cov_array_filled>0){
           if(setting_average_thrust){
@@ -568,7 +549,6 @@ void calc_frame_ibvs_control(struct opticflow_t *opticflow,struct Tracked_object
             setting_average_thrust = true;
           }
         }*/
-        printf("of_landing_ctrl.nominal_thrust = %f \n",of_landing_ctrl.nominal_thrust*(float)MAX_PPRZ);
 	    }
 	    else if (of_landing_ctrl.CONTROL_METHOD == 1) {
         // ADAPTIVE GAIN CONTROL:
@@ -599,7 +579,7 @@ void calc_frame_ibvs_control(struct opticflow_t *opticflow,struct Tracked_object
         // when to make the final landing:
         if (pstate < of_landing_ctrl.p_land_threshold) {
           printf("Final landing \n");
-          thrust_set = final_landing_procedure();
+          thrust_set = final_landing_procedure(opticflow);
         }
 	    }
 
@@ -618,8 +598,6 @@ void calc_frame_ibvs_control(struct opticflow_t *opticflow,struct Tracked_object
 			guidance_v_set_guided_th(thrust_set);
 			struct EnuCoor_f *enu = stateGetPositionEnu_f();
       struct EnuCoor_f *venu = stateGetSpeedEnu_f();
-      printf("Height = %f\n",enu->z);
-      printf("v_z = %f\n",venu->z);
       fprintf(opticflow->ibvs_file_logger,"%f\t%f\t%f\t%f\t%f\t%f\t%f\n",get_sys_time_float(),
                 enu->x,enu->y,enu->z,venu->x,venu->y,venu->z);
 			// guidance_h_set_guided_heading_rate(r_star);
@@ -632,7 +610,8 @@ void calc_frame_ibvs_control(struct opticflow_t *opticflow,struct Tracked_object
     object_to_track->roih_prev = opticflow->roih;
 
 	}
-	if (landing && opticflow->in_flight){
+	if (opticflow->landing && opticflow->in_flight){
+	  printf("Last phase \n");
     opticflow->object_tracking = false;
     guidance_v_set_guided_th(of_landing_ctrl.final_thrust);
     struct EnuCoor_f *enu = stateGetPositionEnu_f();
@@ -642,12 +621,13 @@ void calc_frame_ibvs_control(struct opticflow_t *opticflow,struct Tracked_object
       opticflow->t_landed = get_sys_time_float();
       // Write all event parameters to file
       fprintf(opticflow->ibvs_file_logger,"%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%d\t%d\t%d\t%d\t%f\t%f\t"
-          "%f\t%f\t%f\t%f\t%f\t%d\n",opticflow->t_landed,
+          "%f\t%f\t%f\t%f\t%f\t%d\t%f\t%f\t%f\n",opticflow->t_landed,
           enu->x,enu->y,enu->z,venu->x,venu->y,venu->z,opticflow->start_pos.x,opticflow->start_pos.y
           ,opticflow->start_pos.z,opticflow->roih_init,opticflow->roiw_init
           ,opticflow->roi_center_init.x,opticflow->roi_center_init.y,opticflow->img_gray.w
           ,opticflow->img_gray.h,0.7175,of_landing_ctrl.divergence_setpoint,opticflow->t_0
-          ,opticflow->t_1,opticflow->t_2,opticflow->t_3,opticflow->t_landed,opticflow->n_reinits);
+          ,opticflow->t_1,opticflow->t_2,opticflow->t_3,opticflow->t_landed,opticflow->n_reinits
+          ,opticflow->start_angles.phi,opticflow->start_angles.theta,opticflow->start_angles.psi);
       // Last line t_reinits
       fprintf(opticflow->ibvs_file_logger,"t_reinits");
       for(uint32_t i=0;i<opticflow->n_reinits;i++){
@@ -658,8 +638,6 @@ void calc_frame_ibvs_control(struct opticflow_t *opticflow,struct Tracked_object
       fprintf(opticflow->ibvs_file_logger,"%f\t%f\t%f\t%f\t%f\t%f\t%f\n",get_sys_time_float(),
           enu->x,enu->y,enu->z,venu->x,venu->y,venu->z);
     }
-    printf("Height = %f\n",enu->z);
-    printf("v_z = %f\n",venu->z);
   }
 }
 
@@ -676,7 +654,7 @@ void vertical_ctrl_module_init()
   of_landing_ctrl.agl = 0.0f;
   of_landing_ctrl.agl_lp = 0.0f;
   of_landing_ctrl.vel = 0.0f;
-  of_landing_ctrl.divergence_setpoint = -4; // For exponential gain landing, pick a negative value
+  of_landing_ctrl.divergence_setpoint = -.5; // For exponential gain landing, pick a negative value
   of_landing_ctrl.cov_set_point = OFL_COV_SETPOINT;
   of_landing_ctrl.cov_limit = fabsf(OFL_COV_LANDING_LIMIT);
   of_landing_ctrl.lp_const = OFL_LP_CONST;
@@ -762,16 +740,10 @@ void reset_all_vars(void)
 /**
  * Execute a final landing procedure
  */
-float final_landing_procedure(void)
+float final_landing_procedure(struct opticflow_t *opticflow)
 {
-  // land with 85% nominal thrust:
-  /*float nominal_throttle = of_landing_ctrl.nominal_thrust * (float)MAX_PPRZ;
-  float thrust = 0.85 * nominal_throttle;
-  printf("Final thrust before landing = %f\n",thrust);
-  Bound(thrust, 0.6 * nominal_throttle, 0.9 * MAX_PPRZ);
-  printf("Final thrust after bound = %f\n",thrust);*/
   float thrust = of_landing_ctrl.final_thrust;
-  landing = true;
+  opticflow->landing = true;
 
   return thrust;
 }
@@ -823,7 +795,6 @@ float PID_divergence_control(float setpoint, float P, float I, float D, float dt
 {
   // determine the error:
   float err = setpoint - of_landing_ctrl.divergence;
-  printf("err = setpoint - of_landing_ctrl.divergence = %f - %f = %f \n",setpoint,of_landing_ctrl.divergence,err);
   // update the controller errors:
   update_errors(err, dt);
 
@@ -832,10 +803,6 @@ float PID_divergence_control(float setpoint, float P, float I, float D, float dt
                     + P * err
                     + I * of_landing_ctrl.sum_err
                     + D * of_landing_ctrl.d_err) * (float)MAX_PPRZ;
-
-  printf("thrust = (of_landing_ctrl.nominal_thrust + P * err + I * of_landing_ctrl.sum_err + "
-      "D * of_landing_ctrl.d_err) * (float)MAX_PPRZ = (%f + %f +%f + %f)*%f = %f\n",of_landing_ctrl.nominal_thrust,
-      P * err, I * of_landing_ctrl.sum_err, D * of_landing_ctrl.d_err, (float)MAX_PPRZ,thrust);
   // bound thrust:
   Bound(thrust, -1 * MAX_PPRZ, MAX_PPRZ);
   // update covariance

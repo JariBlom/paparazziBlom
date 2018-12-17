@@ -140,6 +140,10 @@ struct opticflow_t {
   struct EnuCoor_f start_pos;
   /** The file pointer */
   FILE *ibvs_file_logger;
+  bool roiw_scaled_gain;
+  struct FloatEulers start_angles;
+  bool insufficient_corners;  // When we can't find enough corners
+  uint32_t broken_in_row; // When above has happened in a row
 
 };
 
