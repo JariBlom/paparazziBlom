@@ -1,6 +1,6 @@
 <!DOCTYPE flight_plan SYSTEM "./flight_plan.dtd">
 
-<flight_plan alt="5" ground_alt="0" lat0="51.9906361" lon0="4.3767874" max_dist_from_home="20" name="Bebop IBVS TU Delft Cyberzoo" security_height="0.4">
+<flight_plan alt="1" ground_alt="0" lat0="51.9906361" lon0="4.3767874" max_dist_from_home="20" name="Bebop IBVS TU Delft Cyberzoo" security_height="0.4">
   <header>
     #include "subsystems/datalink/datalink.h"
     #include "subsystems/electrical.h"
@@ -22,7 +22,7 @@
     <waypoint name="P1" x="0.1" y="0.3"/>
     <waypoint name="P2" alt="3.0" x="-0.1" y="-.3"/>
     <!-- <waypoint name="P3" alt="4.0" x="-.3" y="-.3"/> -->
-    <waypoint name="P3" x="-.7" y="-.7"/>
+    <waypoint name="P3" x="-.2" y="-.2"/>
     <waypoint lat="51.9905836" lon="4.3767729" name="_CZ1"/>
     <waypoint lat="51.9906365" lon="4.3767138" name="_CZ2"/>
     <waypoint lat="51.990680" lon="4.376805" name="_CZ3"/>

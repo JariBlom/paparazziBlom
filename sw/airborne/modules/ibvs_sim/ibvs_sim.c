@@ -83,7 +83,7 @@
 #define MAX_PPRZ 9600
 
 #ifndef OFL_PGAIN
-#define OFL_PGAIN 0.00001
+#define OFL_PGAIN 0.000008
 #endif
 
 #ifndef OFL_IGAIN
@@ -654,7 +654,7 @@ void vertical_ctrl_module_init()
   of_landing_ctrl.agl = 0.0f;
   of_landing_ctrl.agl_lp = 0.0f;
   of_landing_ctrl.vel = 0.0f;
-  of_landing_ctrl.divergence_setpoint = -.5; // For exponential gain landing, pick a negative value
+  of_landing_ctrl.divergence_setpoint = -6.0; // For exponential gain landing, pick a negative value
   of_landing_ctrl.cov_set_point = OFL_COV_SETPOINT;
   of_landing_ctrl.cov_limit = fabsf(OFL_COV_LANDING_LIMIT);
   of_landing_ctrl.lp_const = OFL_LP_CONST;
